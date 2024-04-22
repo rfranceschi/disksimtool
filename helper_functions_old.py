@@ -263,9 +263,11 @@ def read_opacs(fname):
         opac_dict = {k: v for k, v in fid.items()}
     return opac_dict
 
+
 def running_average(a, n=1):
     b = np.concatenate((np.ones(n) * a[0], a, np.ones(n) * a[-1]))
     return np.convolve(b, np.ones(2 * n + 1) / (2 * n + 1), mode='valid')
+
 
 def movingaverage(interval, window_size):
     window = np.ones(int(window_size)) / float(window_size)

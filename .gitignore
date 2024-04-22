@@ -1,0 +1,8 @@
+/data_CO_profile/
+/data_C18O/
+/data_test/
+/models/
+/observations/
+/opacities/
+*.pickle
+*.pkl

@@ -21,6 +21,9 @@ from dipsy import get_powerlaw_dust_distribution
 from dipsy.utils import get_interfaces_from_log_cell_centers
 from disklab.radmc3d import write_wavelength_micron
 import disklab
+from scipy.integrate import simpson
+from scipy.interpolate import interp1d
+
 from helper_functions_old import *
 
 
@@ -31,7 +34,8 @@ R_sun = c.R_sun.cgs.value
 
 
 def make_disklab2d_model(
-        parameters: list,
+        # parameters: list,
+        a_obs: float,
         mstar: float,
         lstar: float,
         tstar: float,
@@ -39,18 +43,24 @@ def make_disklab2d_model(
         alpha: float,
         rin: float,
         rout: float,
-        r_c: float,
+        # r_c: float,
         opac_fname: str,
-        profile_funct: callable = None,
+        profile_funct_dust: callable,
+        profile_funct_gas: callable = None,
         show_plots: bool = False
 ):
     """
-    Create a dislkab model and the opacity needed to run a radiative transfer calculation for dust emission.
+    Create a dislkab model and the opacity needed to run a radiative transfer calculation for dust emission of a single
+    dust population.
 
     Parameters
     ----------
     parameters: list
         Additional parameters for the disk gas and dust distribution.
+    d2g: float
+        Dust-to-gas ratio of the single dust population
+    a_obs: float
+        Emitting grain size.
     mstar: float
     lstar: float
     tstar: float
@@ -60,7 +70,9 @@ def make_disklab2d_model(
     rout: float
     r_c: float
     opac_fname: str
-    profile_funct: callable
+    profile_funct_dust: callable
+        Normalized profile for the dust population surface density distribution.
+    profile_funct_gas: callable
         Normalized profile for the gas surface density distribution. If None, use a LBP self similar solution.
     show_plots: bool = False
 
@@ -69,16 +81,6 @@ def make_disklab2d_model(
 
     """
     # The different indices in the parameters list correspond to different physical paramters
-
-    size_exp = parameters[0]
-    amax_exp = parameters[1]
-    amax_coeff = parameters[2]
-    # cutoff_exp_amax = parameters[3]
-    # cutoff_r = parameters[4]
-
-    # hard-coded gas parameters
-    sigma_coeff = 28.4
-    sigma_exp = 1.0
 
     # read some values from the parameters file
 
@@ -95,38 +97,24 @@ def make_disklab2d_model(
     # Create a grid more refined at smaller radii, to logarithmically sample the disk.
     rmod = np.hstack((np.geomspace(rin, r_sep, n_sep + 1)[:-1], np.linspace(r_sep, rout, nr - n_sep)))
     d = disklab.DiskRadialModel(mstar=mstar, lstar=lstar, tstar=tstar, alpha=alpha, rgrid=rmod)
-    if profile_funct is None:
+    if profile_funct_gas is None:
         raise NotImplementedError
         # if parameters is None:
         #     raise ValueError('You must provide the values needed to compute a LBS soltion if not using a custom'
         #                      'profile for the gas surface density distribution.')
         # d.make_disk_from_simplified_lbp(sigma_coeff, r_c, sigma_exp)
     else:
-        d.sigma = profile_funct(d.r)
+        d.sigma = profile_funct_gas(d.r)
         d.compute_mass()
         d.compute_rhomid_from_sigma()
-
 
     if d.mass / mstar > 0.2:
         warnings.warn(f'Disk mass is unreasonably high: M_disk / Mstar = {d.mass / mstar:.2g}')
 
-    # Add the dust, based on the dust-to-gas parameters.
-
-    # Experiment d2g distribution.
-    d2g = 0.1
-    # We take as scaling radius the edge of the 870 micron image, for simplicity
-    a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
-
-    a_i = get_interfaces_from_log_cell_centers(a_opac)
-    # if we change a0 and a1 we have a different grid than a_opac, and the interpolation creates the wrong g parameter
-    #   increase the number of grain size in the opac file
-    #   OR we take ~150 grain sizes in the opac file and then interpolate 15 grains for radmc3d (change a1 in the next
-    #   call). Radmc will still complain though, we would have to recalculate g.
-    a, a_i, sig_da = get_powerlaw_dust_distribution(d.sigma * d2g, np.minimum(a_opac[-1], a_max), q=4 - size_exp,
-                                                    na=n_a, a0=a_i[0], a1=a_i[-1])
-
-    for _sig, _a in zip(np.transpose(sig_da), a_opac):
-        d.add_dust(agrain=_a, xigrain=rho_s, dtg=_sig / d.sigma)
+    # Add the dust.
+    sigma_dust = profile_funct_dust(d.r)
+    index = np.nonzero(a_obs <= a_opac)[0][0]
+    d.add_dust(agrain=a_opac[index], xigrain=rho_s, dtg=sigma_dust / d.sigma)
 
     if show_plots:
         f, ax = plt.subplots()
@@ -145,7 +133,7 @@ def make_disklab2d_model(
     for dust in d.dust:
         dust.grain.read_opacity(str(opac_fname))
 
-    # compute the mean opacities
+    # compute the mean opacities_IMLup
     d.meanopacitymodel = ['dustcomponents', {'method': 'simplemixing'}]
     d.compute_mean_opacity()
 
@@ -158,7 +146,7 @@ def make_disklab2d_model(
         ax.set_ylabel('mean opacity')
         ax.legend()
 
-    # smooth the mean opacities
+    # smooth the mean opacities_IMLup
     d.mean_opacity_planck[7:-7] = movingaverage(d.mean_opacity_planck, 10)[7:-7]
     d.mean_opacity_rosseland[7:-7] = movingaverage(d.mean_opacity_rosseland, 10)[7:-7]
 
@@ -284,3 +272,35 @@ def make_disklab2d_model(
 
     # --- done setting up the radmc3d model ---
     return disk2d
+
+
+def interp_profile(profile_dict: dict, total_disk_mass: float) -> callable:
+    """
+    Interpolate a profile to use as gas surface density, normalized to a given total disk mass.
+
+    Parameters
+    ----------
+    profile_dict: dict
+        Dictionary containing the profile to use as surface density distribution. The keys must be named 'x' and 'y'.
+    total_disk_mass: float
+        Total disk mass.
+
+    Returns
+    -------
+    float
+        Normalized gas surface density function.
+    """
+    normalization_constant = total_disk_mass / simpson(2 * np.pi * profile_dict['x'] * profile_dict['y'],
+                                                       profile_dict['x'])
+
+    # The profile cannot be <= 0, make sure that doesn't happen.
+    y_profile = np.where(profile_dict['y'] > 0, profile_dict['y'], 0)
+    # y_profile = np.copy(profile_dict['y'])
+    # if np.min(y_profile) <= 0:
+    #     y_profile += np.max(y_profile)
+
+    normalization_constant = total_disk_mass / simpson(2 * np.pi * profile_dict['x'] * y_profile, profile_dict['x'])
+
+    interp = interp1d(profile_dict['x'], y_profile, fill_value='extrapolate', kind='quadratic')
+    return lambda x: normalization_constant * interp(x)
+

@@ -1,3 +1,4 @@
+import logging
 import warnings
 import pickle
 from pathlib import Path
@@ -5,6 +6,7 @@ import tempfile
 import subprocess
 
 import matplotlib.pyplot as plt
+import optool
 from astropy.modeling.functional_models import Exponential1D
 from matplotlib import lines, text
 from matplotlib.colors import Normalize
@@ -96,7 +98,7 @@ def chop_forward_scattering(opac_dict, chopforward=5):
     return zscat, zscat_nochop, k_sca, g
 
 
-def make_opacs(a, lam, fname='dustkappa_IMLUP', porosity=None, constants=None, n_theta=101, optool=True, composition='dsharp'):
+def make_opacs(a, lam, fname='dustkappa', porosity=None, constants=None, n_theta=101, optool=True, composition='dsharp'):
     """make optical constants file"""
 
     if n_theta // 2 == n_theta / 2:
@@ -107,7 +109,7 @@ def make_opacs(a, lam, fname='dustkappa_IMLUP', porosity=None, constants=None, n
     n_lam = len(lam)
 
     if (composition.lower() != 'dsharp') and (optool is False):
-        raise ValueError('non dsharp opacities should use optool')
+        raise ValueError('non dsharp opacities, should use optool')
 
     if constants is None:
         if porosity is None:
@@ -127,10 +129,14 @@ def make_opacs(a, lam, fname='dustkappa_IMLUP', porosity=None, constants=None, n
 
     opac_fname = Path(fname).with_suffix('.npz')
 
+    print('test')
     if optool:
+        print('test1')
+        rho_s = optool_wrapper([a[0]], lam, chop=5, porosity=porosity, composition=composition)['rho_s']
         try:
             rho_s = optool_wrapper([a[0]], lam, chop=5, porosity=porosity, composition=composition)['rho_s']
             optool_available = True
+            print('test2')
         except FileNotFoundError:
             warnings.warn('optool unavailable, cannot check rho_s to be consistent or recalculate opacities this way')
             optool_available = False
@@ -165,7 +171,7 @@ def make_opacs(a, lam, fname='dustkappa_IMLUP', porosity=None, constants=None, n
             print(f'composition in dict ({opac_dict["composition"]}) != {composition}')
             run_opac = True
 
-        # if optool is used and available or we use dsharp: then we compare densities
+        # if optool is used and available, or we use dsharp: then we compare densities
         if (not optool or (optool and optool_available)) and (opac_dict['rho_s'] != rho_s):
             run_opac = True
 
@@ -528,3 +534,200 @@ def make_disklab2d_model(
 
     # --- done setting up the radmc3d model ---
     return disk2d
+
+
+def read_radmc_opacityfile(file):
+    """reads RADMC-3D opacity files, returns dictionary with its contents."""
+    file = Path(file)
+
+    if 'dustkapscatmat' in file.name:
+        scatter = True
+
+    name = '_'.join(file.stem.split('_')[1:])
+
+    if not file.is_file():
+        raise FileNotFoundError(f'file not found: {file}')
+
+    with open(file, 'r') as f:
+        iformat = int(get_line(f))
+        if iformat == 2:
+            ncol = 3
+        elif iformat in [1, 3]:
+            ncol = 4
+        else:
+            raise ValueError('Format of opacity file unknown')
+        n_f = int(get_line(f))
+
+        # read also number of angles for scattering matrix
+        if scatter:
+            n_th = int(get_line(f))
+
+        # read wavelength, k_abs, k_sca, g
+        data = np.fromfile(f, dtype=np.float64, count=n_f * ncol, sep=' ')
+
+        # read angles and zscat
+        if scatter:
+            theta = np.fromfile(f, dtype=np.float64, count=n_th, sep=' ')
+            zscat = np.fromfile(f, dtype=np.float64, count=n_th * n_f * 6, sep=' ').reshape([6, n_th, n_f], order='F').T
+            # zscat = np.moveaxis(zscat, 0, 1)
+
+    data = data.reshape(n_f, ncol)
+    lam = 1e-4 * data[:, 0]
+    k_abs = data[:, 1]
+    k_sca = data[:, 2]
+
+    if iformat in [1, 3]:
+        opac_gsca = 1.0 * data[:, 3]
+
+    # define the output
+
+    output = {
+        'lam': lam,
+        'k_abs': k_abs,
+        'k_sca': k_sca,
+        'name': name,
+    }
+
+    if iformat in [1, 3]:
+        output['g'] = opac_gsca
+        if scatter:
+            output['theta'] = theta
+            output['n_th'] = n_th
+            output['zscat'] = zscat
+
+    return output
+
+
+def get_line(filehandle, comments=('=', '#')):
+    "helper function: reads next line from file but skips comments and empty lines"
+    line = filehandle.readline()
+    while line.startswith(comments) or line.strip() == '':
+        line = filehandle.readline()
+    return line
+
+
+def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dsharp'):
+    """
+    Wrapper for optool to calculate DSHARP opacities in RADMC-3D format.
+
+    Parameters
+    ----------
+    a : array
+        particle size array
+    lam : array | str
+        either a string pointing to a RADMC-3d wavelength file or 3-elements: min & max & number of wavelengths
+    chop : float, optional
+        below how many degrees to chop forward scattering peak, by default 5
+    porosity : float, optional
+        grain porosity, by default 0.3
+
+    composition : str
+        if 'dsharp': use opacities similar to DSHARP (not identical, need to check why)
+        if 'diana': use DIANA opacities
+        else: use whatever is given as parameters for optool
+
+    Returns
+    -------
+    dict
+
+    """
+    td = None
+    if isinstance(lam, str):
+        lam_str = lam
+        nlam = int(np.fromfile(lam_str, count=1, dtype=int, sep=' '))
+    elif len(lam) == 3:
+        print('assuming lam specifies minimum wavelength, maximum wavelength, and number of points')
+        nlam = lam[3]
+        lam_str = '%e %e %d' % tuple(lam)
+    elif len(lam) > 3:
+        print('assuming lam to be given wavelength grid')
+        td = tempfile.TemporaryDirectory()
+        write_wavelength_micron(lam_mic=lam * 1e4, path=td.name)
+        nlam = len(lam)
+        lam_str = str(Path(td.name) / 'wavelength_micron.inp')
+    else:
+        raise ValueError('lam needs to be a file or of length 3 (lmin, lmax, nl)')
+
+    if composition is None:
+        composition = 'dsharp'
+
+    if composition.lower() == 'dsharp':
+        composition = '-mie -c h2o-w 0.2 -c astrosil 0.3291 -c fes 0.0743 -c c-org 0.3966'
+    elif composition.lower() == 'diana':
+        composition = ''
+
+    # initialize arrays
+
+    k_abs = np.zeros([len(a), nlam])
+    k_sca = np.zeros_like(k_abs)
+    g = np.zeros_like(k_abs)
+    zscat = None
+    rho_s = None
+
+    # start reading
+
+    for ia, _a in tqdm.tqdm(enumerate(a), total=len(a)):
+        # TODO: this next part doesnt work, there is nothing in result.stdout. We should also use the optool python
+        #  module instead of running from the command line.
+
+        cmd = f'optool -chop {chop} -s {n_angle} -p {porosity} {composition} -a {_a * 0.9e4} {_a * 1.1e4} 3.5 10 -l {lam_str} -radmc'
+        # result = subprocess.run(cmd.split(), capture_output=True)
+        result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        output = result.stdout.decode()
+
+        if output.split()[-1] == 'dustkapscatmat.inp':
+            scatter = True
+            fname = 'dustkapscatmat.inp'
+        elif output.split()[-1] == 'dustkappa.inp':
+            scatter = False
+            fname = 'dustkappa.inp'
+        else:
+            raise ValueError(output.split()[-1])
+
+        # read data, remove file
+        optool_data = read_radmc_opacityfile(fname)
+
+        # put data of this particle into the big arrays
+        k_abs[ia, :] = optool_data['k_abs']
+        k_sca[ia, :] = optool_data['k_sca']
+        g[ia, :] = optool_data['g']
+        lam = optool_data['lam']
+
+        # TODO
+        if scatter:
+            theta = optool_data['theta']
+            if zscat is None:
+                zscat = np.zeros([len(a), len(lam), len(theta), 6])
+            zscat[ia, ...] = optool_data['zscat']
+
+        # TODO
+        if rho_s is None:
+            with open(fname, 'r') as f:
+                scat_file = f.read()
+            lines = [line for line in scat_file.split('\n') if line.strip('# ').startswith('core')]
+            # lines = [line for line in output.split('\n') if line.strip().startswith('core')]
+            fractions = np.array([[float(f) for f in line.split()[2:4]] for line in lines])
+            rho_s = fractions.prod(axis=1).sum() * (1.0 - porosity)
+        Path(fname).unlink()
+
+    if td is not None:
+        td.cleanup()
+
+    output = {
+        'a': a,
+        'lam': lam,
+        'k_abs': k_abs,
+        'k_sca': k_sca,
+        'g': g,
+        # TODO
+        'output': output,
+        'rho_s': rho_s,
+    }
+
+    if scatter:
+    # if result.scat:
+        output['zscat'] = zscat
+        output['theta'] = theta
+        output['n_th'] = len(theta)
+
+    return output

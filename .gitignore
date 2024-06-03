@@ -3,6 +3,6 @@
 /data_test/
 /models/
 /observations/
-/opacities/
+/opacities_IMLup/
 *.pickle
 *.pkl

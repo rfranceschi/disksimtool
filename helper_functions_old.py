@@ -129,14 +129,10 @@ def make_opacs(a, lam, fname='dustkappa', porosity=None, constants=None, n_theta
 
     opac_fname = Path(fname).with_suffix('.npz')
 
-    print('test')
     if optool:
-        print('test1')
-        rho_s = optool_wrapper([a[0]], lam, chop=5, porosity=porosity, composition=composition)['rho_s']
         try:
             rho_s = optool_wrapper([a[0]], lam, chop=5, porosity=porosity, composition=composition)['rho_s']
             optool_available = True
-            print('test2')
         except FileNotFoundError:
             warnings.warn('optool unavailable, cannot check rho_s to be consistent or recalculate opacities this way')
             optool_available = False
@@ -719,7 +715,6 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
     }
 
     if scatter:
-    # if result.scat:
         output['zscat'] = zscat
         output['theta'] = theta
         output['n_th'] = len(theta)

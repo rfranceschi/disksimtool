@@ -667,11 +667,8 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
     # start reading
 
     for ia, _a in tqdm.tqdm(enumerate(a), total=len(a)):
-        # TODO: this next part doesnt work, there is nothing in result.stdout. We should also use the optool python
-        #  module instead of running from the command line.
 
         cmd = f'optool -chop {chop} -s {n_angle} -p {porosity} {composition} -a {_a * 0.9e4} {_a * 1.1e4} 3.5 10 -l {lam_str} -radmc'
-        # result = subprocess.run(cmd.split(), capture_output=True)
         result = subprocess.run(cmd.split(), stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
         output = result.stdout.decode()
 
@@ -693,14 +690,12 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
         g[ia, :] = optool_data['g']
         lam = optool_data['lam']
 
-        # TODO
         if scatter:
             theta = optool_data['theta']
             if zscat is None:
                 zscat = np.zeros([len(a), len(lam), len(theta), 6])
             zscat[ia, ...] = optool_data['zscat']
 
-        # TODO
         if rho_s is None:
             with open(fname, 'r') as f:
                 scat_file = f.read()
@@ -719,7 +714,6 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
         'k_abs': k_abs,
         'k_sca': k_sca,
         'g': g,
-        # TODO
         'output': output,
         'rho_s': rho_s,
     }

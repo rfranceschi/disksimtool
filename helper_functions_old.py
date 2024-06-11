@@ -285,7 +285,7 @@ def make_disklab2d_model(
         alpha: float,
         rin: float,
         rout: float,
-        r_c: float,
+        # r_c: float,
         opac_fname: str,
         profile_funct: callable = None,
         show_plots: bool = False
@@ -316,25 +316,17 @@ def make_disklab2d_model(
     """
     # The different indices in the parameters list correspond to different physical paramters
 
-    size_exp = parameters[0]
-    amax_exp = parameters[1]
+    size_exp = parameters[0]  # n(a) = a**(4-size_exp)
+    amax_exp = parameters[1]  # a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
     amax_coeff = parameters[2]
-    # cutoff_exp_amax = parameters[3]
-    # cutoff_r = parameters[4]
-
-    # hard-coded gas parameters
-    sigma_coeff = 28.4
-    sigma_exp = 1.0
 
     # read some values from the parameters file
-
     with np.load(opac_fname) as fid:
         a_opac = fid['a']
         rho_s = fid['rho_s']
         n_a = len(a_opac)
 
     # start with the 1D model
-
     r_sep = 20 * au
     n_sep = 40
 
@@ -343,23 +335,17 @@ def make_disklab2d_model(
     d = disklab.DiskRadialModel(mstar=mstar, lstar=lstar, tstar=tstar, alpha=alpha, rgrid=rmod)
     if profile_funct is None:
         raise NotImplementedError
-        # if parameters is None:
-        #     raise ValueError('You must provide the values needed to compute a LBS soltion if not using a custom'
-        #                      'profile for the gas surface density distribution.')
-        # d.make_disk_from_simplified_lbp(sigma_coeff, r_c, sigma_exp)
     else:
         d.sigma = profile_funct(d.r)
         d.compute_mass()
         d.compute_rhomid_from_sigma()
 
-
     if d.mass / mstar > 0.2:
         warnings.warn(f'Disk mass is unreasonably high: M_disk / Mstar = {d.mass / mstar:.2g}')
 
     # Add the dust, based on the dust-to-gas parameters.
-
     # Experiment d2g distribution.
-    d2g = 0.1
+    d2g = 0.01
     # We take as scaling radius the edge of the 870 micron image, for simplicity
     a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
 
@@ -661,7 +647,6 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
     rho_s = None
 
     # start reading
-
     for ia, _a in tqdm.tqdm(enumerate(a), total=len(a)):
 
         cmd = f'optool -chop {chop} -s {n_angle} -p {porosity} {composition} -a {_a * 0.9e4} {_a * 1.1e4} 3.5 10 -l {lam_str} -radmc'

@@ -13,7 +13,11 @@ import numpy as np
 from radmc3dPy import image
 from scipy.integrate import simpson
 
-import helper_functions_old as hf_old
+import src.helper_functions as hf
+import src.model_utils as model_utils
+import src.opac as opac
+import src.radmc_utils as radmc_utils
+
 
 logging.basicConfig(level=logging.INFO)
 radmc3d_exec = Path('~/bin/radmc3d').expanduser()
@@ -69,7 +73,7 @@ def integrate_sigma(r: np.array, sigma: np.array) -> float:
     -------
 
     """
-    return simpson(2 * np.pi * r * sigma, r)
+    return simpson(y=2 * np.pi * r * sigma, x=r)
 
 
 lam_obs_list = [0.000165, 0.0015, 0.087]
@@ -77,7 +81,7 @@ lam_obs_list = [0.000165, 0.0015, 0.087]
 # OPACITIES
 # Read them if they exist, or calculate them
 try:
-    opac_dict = hf_old.read_opacs(Path('opacities/dustkappa_p30_chopped.npz'))
+    opac_dict = opac.read_opacs(Path('opacities/dustkappa_p30_chopped.npz'))
     # Double check that the wavelengths at which we want to compute the images are in the opacity lambda array.
     lam_opac = opac_dict['lam']
     n_a = len(opac_dict['a'])
@@ -87,7 +91,8 @@ try:
             logging.info(
                 f"The observation lambda is not in the opacity lambda array, taking the closest one ({lam_obs_list[i]} != {lam_opac[ilam]}).")
             lam_obs_list[i] = lam_opac[ilam]
-except FileNotFoundError("Opacity file not found, calculating opacities."):
+except FileNotFoundError:
+    logging.warning("Opacity file not found, calculating opacities.")
     # Define the wavelength, size, and angle grids then calculate opacities_IMLup and store them in a local file,
     # if it doesn't exist yet. Careful, that takes of the order of >2h
     n_lam = 200  # number of wavelength points
@@ -102,33 +107,8 @@ except FileNotFoundError("Opacity file not found, calculating opacities."):
         ilam = np.abs(lam_opac - _lam_obs).argmin()
         lam_opac[ilam] = _lam_obs
 
-    a_opac = np.logspace(-5, 1, n_a)
-    composition = 'diana'
+    opac.compute_opac(lam_opac, n_a, n_theta, porosity)
 
-    # Make opacities if necessary
-    opac_dict = hf_old.make_opacs(a_opac, lam_opac, fname='opacities/dustkappa', porosity=porosity, n_theta=n_theta,
-                                  composition=composition, optool=True)
-    fname_opac = opac_dict['filename']
-
-    # This part chops the very-forward scattering part of the phase function.
-    # This part is basically the same as no scattering, but are treated by the code as a scattering event.
-    # By cutting this part out of the phase function, we avoid those non-scattering scattering events.
-    fname_opac_chopped = '_chopped.'.join(fname_opac.rsplit('.', 1))
-
-    k_sca_nochop = opac_dict['k_sca']
-    g_nochop = opac_dict['g']
-
-    zscat, zscat_nochop, k_sca, g = hf_old.chop_forward_scattering(opac_dict)
-
-    opac_dict['k_sca'] = k_sca
-    opac_dict['zscat'] = zscat
-    opac_dict['g'] = g
-    opac_dict['composition'] = composition
-
-    rho_s = opac_dict['rho_s']
-    m = 4 * np.pi / 3 * rho_s * a_opac ** 3
-
-    do.write_disklab_opacity(fname_opac_chopped, opac_dict)
 
 # DISK MODEL
 
@@ -165,11 +145,6 @@ model_path = models_root / model_name / 'model.pkl'
 
 logging.info(f'Writing to {model_name} directory')
 
-if model_path.parent.stem == 'model_test':
-    if model_path.parent.exists():
-        shutil.rmtree(model_path.parent)
-    model_path.parent.mkdir(exist_ok=True)
-
 if model_path.is_file():
     with open(model_path, 'rb') as fff:
         disk2d = pickle.load(fff)
@@ -185,7 +160,7 @@ else:
     r = np.arange(options['rin'], options['rout'], 0.1 * au)
     density_func = partial(sigma_with_rim, **density_params)
 
-    disk2d = hf_old.make_disklab2d_model(
+    disk2d = model_utils.make_disklab2d_model(
         parameters,
         options['mstar'],
         options['lstar'],
@@ -198,13 +173,15 @@ else:
         density_func,
         show_plots=False
     )
+
+    model_path.parent.mkdir(exist_ok=True)
     with open(model_path, 'wb') as fff:
         pickle.dump(disk2d, fff)
 
 # IMAGE RADIATIVE TRANSFER
 radmcfolder = model_path.parents[0] / 'radmc_run/'
 radmcfolder.mkdir(parents=True, exist_ok=True)
-hf_old.write_radmc3d(disk2d, lam_opac, radmcfolder, show_plots=False)
+radmc_utils.write_radmc3d(disk2d, lam_opac, radmcfolder, show_plots=False)
 
 # write the detailed scattering matrix files
 for i_grain in range(n_a):

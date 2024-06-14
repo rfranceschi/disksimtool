@@ -76,7 +76,20 @@ def integrate_sigma(r: np.array, sigma: np.array) -> float:
     return simpson(y=2 * np.pi * r * sigma, x=r)
 
 
-def run_model(parameters: list, options: dict):
+def disk_model(parameters: list, options: dict) -> Path:
+    """
+
+    Parameters
+    ----------
+    parameters: list
+        Free parameters.
+    options: list
+        Fixed parameters.
+
+    Returns
+    -------
+    Path to the model directory.
+    """
     # OPACITIES
     # Read them if they exist, or calculate them
     try:
@@ -200,6 +213,8 @@ def run_model(parameters: list, options: dict):
         except FileNotFoundError:
             warnings.warn("Could not find the radmc output file.")
 
+    return model_path.parent
+
 
 if __name__ == '__main__':
     model_options = {
@@ -227,4 +242,4 @@ if __name__ == '__main__':
         0.087,  # max grain size radial distribution coefficient
     ]
 
-    run_model(model_parameters, model_options)
+    disk_model(model_parameters, model_options)

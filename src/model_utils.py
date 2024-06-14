@@ -5,6 +5,7 @@ import disklab
 import numpy as np
 from dipsy import get_powerlaw_dust_distribution
 from dipsy.utils import get_interfaces_from_log_cell_centers
+from gofish import imagecube
 from matplotlib import pyplot as plt
 
 import src.helper_functions as hf
@@ -254,3 +255,82 @@ def make_disklab2d_model(
 
     # --- done setting up the radmc3d model ---
     return disk2d
+
+
+def get_profile_from_fits(fname, clip=2.5, show_plots=False, inc=0, PA=0, z0=0.0, psi=0.0, beam=None, r_norm=None,
+                          norm=None, **kwargs):
+    """Get radial profile from fits file.
+
+    Reads a fits file and determines a radial profile with `imagecube`
+
+    fname : str | Path
+        path to fits file
+
+    clip : float
+        clip the image at that many image units (usually arcsec)
+
+    show_plots : bool
+        if true: produce some plots for sanity checking
+
+    inc, PA : float
+        inclination and position angle used in the radial profile
+
+    z0, psi : float
+        the scale height at 1 arcse and the radial exponent used in the deprojection
+
+    beam : None | tuple
+        if None: will be determined by imgcube
+        if 3-element tuple: assume this beam a, b, PA.
+
+    r_norm : None | float
+        if not None: normalize at this radius
+
+    norm : None | float
+        divide by this norm
+
+    kwargs are passed to radial_profile
+
+    Returns:
+    x, y, dy: arrays
+        radial grid, intensity (cgs), error (cgs)
+    """
+
+    if norm is not None and r_norm is not None:
+        raise ValueError('only norm or r_norm can be set, not both!')
+
+    if isinstance(fname, imagecube):
+        data = fname
+    else:
+        data = imagecube(fname, FOV=clip)
+
+    if beam is not None:
+        data.bmaj, data.bmin, data.bpa = beam
+        data.beamarea_arcsec = data._calculate_beam_area_arcsec()
+        data.beamarea_str = data._calculate_beam_area_str()
+
+    x, y, dy = data.radial_profile(inc=inc, PA=PA, z0=z0, psi=psi, **kwargs)
+
+    if data.bunit.lower() == 'jy/beam':
+        y *= 1e-23 / data.beamarea_str
+        dy *= 1e-23 / data.beamarea_str
+    elif data.bunit.lower() == 'jy/pixel':
+        y *= 1e-23 * data.pix_per_beam / data.beamarea_str
+        dy *= 1e-23 * data.pix_per_beam / data.beamarea_str
+    else:
+        raise ValueError('unknown unit, please implement conversion to CGS here')
+
+    if r_norm is not None:
+        norm = np.interp(r_norm, x, y)
+        y /= norm
+        dy /= norm
+
+    if norm is not None:
+        y /= norm
+        dy /= norm
+
+    if show_plots:
+        f, ax = plt.subplots()
+        ax.semilogy(x, y)
+        ax.fill_between(x, y - dy, y + dy, alpha=0.5)
+
+    return x, y, dy

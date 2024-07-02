@@ -15,6 +15,7 @@ M_sun = c.M_sun.cgs.value
 L_sun = c.L_sun.cgs.value
 R_sun = c.R_sun.cgs.value
 
+
 def make_disklab2d_model(
         parameters: list,
         mstar: float,
@@ -67,7 +68,7 @@ def make_disklab2d_model(
 
     # start with the 1D model
     r_sep = 20 * au
-    n_sep = 40
+    n_sep = 400
 
     # Create a grid more refined at smaller radii, to logarithmically sample the disk.
     rmod = np.hstack((np.geomspace(rin, r_sep, n_sep + 1)[:-1], np.linspace(r_sep, rout, nr - n_sep)))
@@ -189,7 +190,7 @@ def make_disklab2d_model(
         d.compute_mean_opacity()
 
         if show_plots:
-            if (iter % 9) == 0 :
+            if (iter % 9) == 0:
                 ax[0].loglog(d.r / au, d.hs / au, label=iter)
                 ax[1].loglog(d.r / au, d.tmid, label=iter)
 

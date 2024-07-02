@@ -18,47 +18,7 @@ def read_opacs(fname):
     return opac_dict
 
 
-def compute_opac(lam_opac, n_a, n_theta, porosity):
-    """
 
-    Parameters
-    ----------
-    lam_opac
-    n_a
-    n_theta
-    porosity
-
-    Returns
-    -------
-
-    """
-    a_opac = np.logspace(-5, 1, n_a)
-    composition = 'diana'
-
-    # Make opacities if necessary
-    opac_dict = make_opacs(a_opac, lam_opac, fname='opacities/dustkappa', porosity=porosity, n_theta=n_theta,
-                                  composition=composition, optool=True)
-    fname_opac = opac_dict['filename']
-
-    # This part chops the very-forward scattering part of the phase function.
-    # This part is basically the same as no scattering, but are treated by the code as a scattering event.
-    # By cutting this part out of the phase function, we avoid those non-scattering scattering events.
-    fname_opac_chopped = '_chopped.'.join(fname_opac.rsplit('.', 1))
-
-    k_sca_nochop = opac_dict['k_sca']
-    g_nochop = opac_dict['g']
-
-    zscat, zscat_nochop, k_sca, g = hf.chop_forward_scattering(opac_dict)
-
-    opac_dict['k_sca'] = k_sca
-    opac_dict['zscat'] = zscat
-    opac_dict['g'] = g
-    opac_dict['composition'] = composition
-
-    rho_s = opac_dict['rho_s']
-    m = 4 * np.pi / 3 * rho_s * a_opac ** 3
-
-    do.write_disklab_opacity(fname_opac_chopped, opac_dict)
 
 def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dsharp'):
     """
@@ -291,7 +251,9 @@ def compute_opac(lam_opac, n_a, n_theta, porosity):
     composition = 'diana'
 
     # Make opacities if necessary
-    opac_dict = make_opacs(a_opac, lam_opac, fname='opacities/dustkappa', porosity=porosity, n_theta=n_theta,
+    fname = Path('opacities/dustkappa')
+    fname.parent.mkdir(exist_ok=True)
+    opac_dict = make_opacs(a_opac, lam_opac, fname=str(fname), porosity=porosity, n_theta=n_theta,
                            composition=composition, optool=True)
     fname_opac = opac_dict['filename']
 

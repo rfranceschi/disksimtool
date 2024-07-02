@@ -35,20 +35,20 @@ def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float, w: float)
     Parameters
     ----------
     r: float
-        Radial position
+        Radial position.
     sigma_exp: float
-        Normalization coefficient
+        Normalization coefficient.
     r_exp: float
-        Radial position where the outer disk starts
+        Radial position where the outer disk starts.
     p: float
-        Exponent of the outer disk profile
+        Exponent of the outer disk profile.
     w: float
-        Dimensionless rim width
+        Dimensionless rim width.
 
     Returns
     -------
     float
-        Surface density
+        Surface density.
     """
     r_dimensionless = r / r_exp
     outer_disk_density = sigma_exp * r_dimensionless ** -p
@@ -66,8 +66,8 @@ def integrate_sigma(r: np.array, sigma: np.array) -> float:
 
     Parameters
     ----------
-    r
-    sigma
+    r: np.array
+    sigma: np.array
 
     Returns
     -------
@@ -91,18 +91,19 @@ def disk_model(parameters: list, options: dict) -> Path:
     Path to the model directory.
     """
     # OPACITIES
-    # Read them if they exist, or calculate them
+    # Read if they exist, or calculate
     try:
         opac_dict = opac.read_opacs(Path('opacities/dustkappa_p30_chopped.npz'))
         # Double check that the wavelengths at which we want to compute the images are in the opacity lambda array.
         lam_opac = opac_dict['lam']
         n_a = len(opac_dict['a'])
-        for i, _lam in enumerate(options['lam_obs_list']):
-            ilam = np.nonzero(lam_opac < _lam)[0][-1]
-            if not options['lam_obs_list'][i] == lam_opac[ilam]:
-                logging.info(
-                    f"The observation lambda is not in the opacity lambda array, taking the closest one ({options['lam_obs_list'][i]} != {lam_opac[ilam]}).")
-                options['lam_obs_list'][i] = lam_opac[ilam]
+        # for i, _lam in enumerate(options['lam_obs_list']):
+        #     ilam_array = np.where(opac_dict['lam'] == _lam)[0]
+            # if ilam_array.size == 0:
+            #     ilam = np.nonzero(lam_opac < _lam)[0][-1]
+            #     logging.info(
+            #         f"The observation lambda is not in the opacity lambda array.")
+                # options['lam_obs_list'][i] = lam_opac[ilam]
     except FileNotFoundError:
         logging.warning("Opacity file not found, calculating opacities.")
         # Define the wavelength, size, and angle grids then calculate opacities_IMLup and store them in a local file,
@@ -113,24 +114,31 @@ def disk_model(parameters: list, options: dict) -> Path:
         porosity = 0.3
 
         # wavelength and particle sizes grids
-        lam_opac = np.logspace(-5, 1, n_lam)
+        lam_opac = np.logspace(-5, 0, n_lam)
         # We insert the observation wavelengths to be sure we don't need interpolation
         for _lam_obs in options['lam_obs_list']:
             ilam = np.abs(lam_opac - _lam_obs).argmin()
             lam_opac[ilam] = _lam_obs
 
         opac.compute_opac(lam_opac, n_a, n_theta, porosity)
+        opac_dict = opac.read_opacs(Path('opacities/dustkappa_p30_chopped.npz'))
 
     # DISK MODEL
-    # Profile from Menu et al.
+    # Profile from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
     r = np.linspace(options['rin'], options['rout'], 1000)
-    profile = sigma_with_rim(r, 11.5, 3.1 * au, 0.5, 0.45)
+    density_params = {
+        'sigma_exp': 24,
+        'r_exp': 3.1 * au,
+        'p': 0.5,
+        'w': 0.45,
+    }
+    profile = sigma_with_rim(r, **density_params)
     disk_gas_mass = (integrate_sigma(r, profile) / c.M_sun.cgs.value)
     logging.info(f'Total disk mass: {disk_gas_mass:.2} M_sun')
 
     models_root = Path('./models')
 
-    model_name = 'model_' + '_'.join([f'{_par}' for _par in parameters])
+    model_name = 'model_' + '_'.join([f'{_par:.2f}' for _par in parameters])
     model_path = models_root / model_name / 'model.pkl'
 
     logging.info(f'Writing to {model_name} directory')
@@ -139,15 +147,7 @@ def disk_model(parameters: list, options: dict) -> Path:
         with open(model_path, 'rb') as fff:
             disk2d = pickle.load(fff)
     else:
-        # Surface density parameters from Menu et al.
-        density_params = {
-            'sigma_exp': 24,
-            'r_exp': 3.1 * au,
-            'p': 0.5,
-            'w': 0.45,
-        }
-
-        r = np.arange(options['rin'], options['rout'], 0.1 * au)
+        # Surface density parameters fixed from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
         density_func = partial(sigma_with_rim, **density_params)
 
         disk2d = model_utils.make_disklab2d_model(
@@ -196,17 +196,18 @@ def disk_model(parameters: list, options: dict) -> Path:
         if radmc_out_path.exists():
             radmc_out_path.unlink()
 
-        radmc_call = (f"image incl {options['inc']} posang {options['PA'] - 90} npix 100 lambda {_lam_image * 1e4} "
+        radmc_call = (f"image incl {options['inc']} posang {options['PA'] - 90} npix {options['npix']} lambda {_lam_image * 1e4} "
                       f"sizeau {2 * options['rout'] / au} setthreads 4")
         if _scat:
             radmc_call += ' stokes'
+        logging.info(radmc_call)
         disklab.radmc3d.radmc3d(
             radmc_call,
             path=radmcfolder,
             executable=str(radmc3d_exec)
         )
 
-        fits_path = radmcfolder.parent / f'image_{_lam_image * 1e4:.1f}_mu.fits'
+        fits_path = radmcfolder.parent / f'{_lam_image * 1e4:.1f}_mu.fits'
         try:
             im_sim = image.readImage(str(radmc_out_path))
             im_sim.writeFits(str(fits_path), dpc=options['distance'], coord=options['coord'])
@@ -223,23 +224,24 @@ if __name__ == '__main__':
         'tstar': 3810,
         'nr': 1000,
         'rin': 0.32 * au,
-        'rout': 61.7 * au,
+        'rout': 2 * 61.7 * au,
         'alpha': 1e-5,
-        'fname_opac': '/Users/rfranceschi/mysims/LESIA/opacities/dustkappa_p30_chopped.npz',
+        'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
         'inc': 7,
         'PA': 0,
         'distance': 56,
-        # The output fits files will be at these wavelengths
+        # The output fits files will be at these wavelengths (micron)
         'lam_obs_list': [0.000165, 0.0015, 0.087],
-        # Scattered light (True) or continuum (False) emission for lam_obs_list
+        # Set scattering (True) or continuum (False) radiative transfer for lam_obs_list wavelengths
         'scattering': [True, False, False],
-        'coord': '11h01m51.9053285064s -34d42m17.033218380s'
+        'coord': '11h01m51.9053285064s -34d42m17.033218380s',
+        'npix': 100,
     }
 
     model_parameters = [
         0.5,  # grain size distribution, a**(4-x)
-        3,  # max grain size radial distribution exponent
-        0.087,  # max grain size radial distribution coefficient
+        7,  # max grain size radial distribution exponent
+        0.087 / 2,  # max grain size radial distribution coefficient
     ]
 
     disk_model(model_parameters, model_options)

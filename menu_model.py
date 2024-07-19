@@ -97,18 +97,17 @@ def disk_model(parameters: list, options: dict) -> Path:
         # Double check that the wavelengths at which we want to compute the images are in the opacity lambda array.
         lam_opac = opac_dict['lam']
         n_a = len(opac_dict['a'])
-        # for i, _lam in enumerate(options['lam_obs_list']):
-        #     ilam_array = np.where(opac_dict['lam'] == _lam)[0]
-            # if ilam_array.size == 0:
-            #     ilam = np.nonzero(lam_opac < _lam)[0][-1]
-            #     logging.info(
-            #         f"The observation lambda is not in the opacity lambda array.")
-                # options['lam_obs_list'][i] = lam_opac[ilam]
+        for i, _lam in enumerate(options['lam_obs_list']):
+            ilam_array = np.where(opac_dict['lam'] == _lam)[0]
+            if ilam_array.size == 0:
+                logging.warning(
+                    f"The observation lambda is not in the opacity lambda array.")
     except FileNotFoundError:
         logging.warning("Opacity file not found, calculating opacities.")
         # Define the wavelength, size, and angle grids then calculate opacities_IMLup and store them in a local file,
-        # if it doesn't exist yet. Careful, that takes of the order of >2h
+        # if it doesn't exist yet. Careful, that takes of the order of >2h.
         n_lam = 200  # number of wavelength points
+        # n_a = 30  # number of particle sizes
         n_a = 30  # number of particle sizes
         n_theta = 181  # number of angles in the scattering phase function
         porosity = 0.3
@@ -136,17 +135,17 @@ def disk_model(parameters: list, options: dict) -> Path:
     disk_gas_mass = (integrate_sigma(r, profile) / c.M_sun.cgs.value)
     logging.info(f'Total disk mass: {disk_gas_mass:.2} M_sun')
 
-    models_root = Path('./models')
+    models_root = Path('./runs/')
 
-    model_name = 'model_' + '_'.join([f'{_par:.2f}' for _par in parameters])
+    model_name = 'model_' + '_'.join([f'{_par:.5f}' for _par in parameters])
     model_path = models_root / model_name / 'model.pkl'
-
-    logging.info(f'Writing to {model_name} directory')
 
     if model_path.is_file():
         with open(model_path, 'rb') as fff:
+            logging.warning(f'Loading model from {model_path}.')
             disk2d = pickle.load(fff)
     else:
+        logging.info(f'Writing to {model_name} directory.')
         # Surface density parameters fixed from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
         density_func = partial(sigma_with_rim, **density_params)
 
@@ -164,7 +163,7 @@ def disk_model(parameters: list, options: dict) -> Path:
             show_plots=False
         )
 
-        model_path.parent.mkdir(exist_ok=True)
+        model_path.parent.mkdir(parents=True, exist_ok=True)
         with open(model_path, 'wb') as fff:
             pickle.dump(disk2d, fff)
 
@@ -197,7 +196,7 @@ def disk_model(parameters: list, options: dict) -> Path:
             radmc_out_path.unlink()
 
         radmc_call = (f"image incl {options['inc']} posang {options['PA'] - 90} npix {options['npix']} lambda {_lam_image * 1e4} "
-                      f"sizeau {2 * options['rout'] / au} setthreads 4")
+                      f"sizeau {2 * options['rout'] / au} setthreads {options['threads']}")
         if _scat:
             radmc_call += ' stokes'
         logging.info(radmc_call)
@@ -222,9 +221,9 @@ if __name__ == '__main__':
         'mstar': 0.8 * M_sun,
         'lstar': 1 * L_sun,
         'tstar': 3810,
-        'nr': 1000,
+        'nr': 400,
         'rin': 0.32 * au,
-        'rout': 2 * 61.7 * au,
+        'rout': 250 * au,
         'alpha': 1e-5,
         'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
         'inc': 7,
@@ -235,13 +234,22 @@ if __name__ == '__main__':
         # Set scattering (True) or continuum (False) radiative transfer for lam_obs_list wavelengths
         'scattering': [True, False, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
-        'npix': 100,
+        'npix': 500,
+        'threads': 16,
     }
 
     model_parameters = [
-        0.5,  # grain size distribution, a**(4-x)
-        7,  # max grain size radial distribution exponent
-        0.087 / 2,  # max grain size radial distribution coefficient
+        0.87754,  # grain size distribution, a**(4-x)
+        2.87614,  # max grain size radial distribution exponent
+        0.00171,  # grain size distribution, a**(4-x)
+        2.87614,  # d2g exp
+        0.00171,  # d2g at 70 au
     ]
 
     disk_model(model_parameters, model_options)
+
+"""
+LOOK FOR ALMA IMAGES OF DISKS WITH CAVITIES, EASIER TO SEE PLANETS, FOR JWST PROPOSAL
+
+Beta Pictoris last week christine chen
+"""

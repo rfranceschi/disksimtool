@@ -59,6 +59,8 @@ def make_disklab2d_model(
     size_exp = parameters[0]  # n(a) = a**(4-size_exp)
     amax_exp = parameters[1]  # a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
     amax_coeff = parameters[2]
+    d2g_exp = parameters[3]
+    d2g_coeff = parameters[4]
 
     # read some values from the parameters file
     with np.load(opac_fname) as fid:
@@ -68,7 +70,7 @@ def make_disklab2d_model(
 
     # start with the 1D model
     r_sep = 20 * au
-    n_sep = 400
+    n_sep = int(0.2 * nr)
 
     # Create a grid more refined at smaller radii, to logarithmically sample the disk.
     rmod = np.hstack((np.geomspace(rin, r_sep, n_sep + 1)[:-1], np.linspace(r_sep, rout, nr - n_sep)))
@@ -85,9 +87,10 @@ def make_disklab2d_model(
 
     # Add the dust, based on the dust-to-gas parameters.
     # Experiment d2g distribution.
-    d2g = 0.01
+    d2g = d2g_coeff * (d.r / (70 * au)) ** (-d2g_exp)
+    d2g = np.minimum(d2g, 0.1)
     # We take as scaling radius the edge of the 870 micron image, for simplicity
-    a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
+    a_max = amax_coeff * (d.r / (70 * au)) ** (-amax_exp)
 
     a_i = get_interfaces_from_log_cell_centers(a_opac)
     # if we change a0 and a1 we have a different grid than a_opac, and the interpolation creates the wrong g parameter

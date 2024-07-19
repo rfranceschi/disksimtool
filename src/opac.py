@@ -247,7 +247,7 @@ def make_opacs(a, lam, fname='dustkappa', porosity=None, constants=None, n_theta
 
 
 def compute_opac(lam_opac, n_a, n_theta, porosity):
-    a_opac = np.logspace(-5, 1, n_a)
+    a_opac = np.logspace(-5, 0, n_a)
     composition = 'diana'
 
     # Make opacities if necessary

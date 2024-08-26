@@ -9,8 +9,8 @@ import ultranest
 from astropy import constants as c
 
 from menu_model import disk_model
-from src import helper_functions as hf
-from src import model_utils
+from disksimtool import helper_functions as hf
+from disksimtool import model_utils
 
 M_sun = c.M_sun.cgs.value
 L_sun = c.L_sun.cgs.value

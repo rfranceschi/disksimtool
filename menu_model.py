@@ -11,9 +11,9 @@ import numpy as np
 from radmc3dPy import image
 from scipy.integrate import simpson
 
-import src.model_utils as model_utils
-import src.opac as opac
-import src.radmc_utils as radmc_utils
+import disksimtool.model_utils as model_utils
+import disksimtool.opac as opac
+import disksimtool.radmc_utils as radmc_utils
 
 logging.basicConfig(level=logging.INFO)
 radmc3d_exec = Path('~/bin/radmc3d').expanduser()

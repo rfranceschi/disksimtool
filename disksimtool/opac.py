@@ -9,7 +9,7 @@ import tqdm
 from disklab.radmc3d import write_wavelength_micron
 import dsharp_opac as do
 
-from src import radmc_utils
+from disksimtool import radmc_utils
 
 
 def read_opacs(fname):

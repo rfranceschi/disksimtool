@@ -8,7 +8,7 @@ from dipsy.utils import get_interfaces_from_log_cell_centers
 from gofish import imagecube
 from matplotlib import pyplot as plt
 
-import src.helper_functions as hf
+import disksimtool.helper_functions as hf
 
 au = c.au.cgs.value
 M_sun = c.M_sun.cgs.value

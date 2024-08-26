@@ -28,9 +28,11 @@ L_sun = c.L_sun.cgs.value
 # PA = 0
 
 
-def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float, w: float) -> float:
+def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float,
+                   w: float) -> float:
     """
-    Computes the surface density with an inner rim, as in Eq.(4) in Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
+    Computes the surface density with an inner rim, as in Eq.(4) in Menu et
+    al. 2014 (https://arxiv.org/pdf/1402.6597).
 
     Parameters
     ----------
@@ -55,7 +57,8 @@ def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float, w: float)
 
     inner_rim_mask = r_dimensionless < 1
     surface_density = outer_disk_density * np.ones_like(r)
-    surface_density[inner_rim_mask] *= np.exp(-((1 - r_dimensionless[inner_rim_mask]) / w) ** 3)
+    surface_density[inner_rim_mask] *= np.exp(
+        -((1 - r_dimensionless[inner_rim_mask]) / w) ** 3)
 
     return surface_density
 
@@ -93,18 +96,22 @@ def disk_model(parameters: list, options: dict) -> Path:
     # OPACITIES
     # Read if they exist, or calculate
     try:
-        opac_dict = opac.read_opacs(Path('opacities/dustkappa_p30_chopped.npz'))
-        # Double check that the wavelengths at which we want to compute the images are in the opacity lambda array.
+        opac_dict = opac.read_opacs(
+            Path('opacities/dustkappa_p30_chopped.npz'))
+        # Double check that the wavelengths at which we want to compute the
+        # images are in the opacity lambda array.
         lam_opac = opac_dict['lam']
         n_a = len(opac_dict['a'])
         for i, _lam in enumerate(options['lam_obs_list']):
             ilam_array = np.where(opac_dict['lam'] == _lam)[0]
             if ilam_array.size == 0:
                 logging.warning(
-                    f"The observation lambda is not in the opacity lambda array.")
+                    "The observation lambda is not in the opacity lambda "
+                    "array.")
     except FileNotFoundError:
         logging.warning("Opacity file not found, calculating opacities.")
-        # Define the wavelength, size, and angle grids then calculate opacities_IMLup and store them in a local file,
+        # Define the wavelength, size, and angle grids then calculate
+        # opacities_IMLup and store them in a local file,
         # if it doesn't exist yet. Careful, that takes of the order of >2h.
         n_lam = 200  # number of wavelength points
         # n_a = 30  # number of particle sizes
@@ -114,13 +121,15 @@ def disk_model(parameters: list, options: dict) -> Path:
 
         # wavelength and particle sizes grids
         lam_opac = np.logspace(-5, 0, n_lam)
-        # We insert the observation wavelengths to be sure we don't need interpolation
+        # We insert the observation wavelengths to be sure we don't need
+        # interpolation
         for _lam_obs in options['lam_obs_list']:
             ilam = np.abs(lam_opac - _lam_obs).argmin()
             lam_opac[ilam] = _lam_obs
 
         opac.compute_opac(lam_opac, n_a, n_theta, porosity)
-        opac_dict = opac.read_opacs(Path('opacities/dustkappa_p30_chopped.npz'))
+        opac_dict = opac.read_opacs(
+            Path('opacities/dustkappa_p30_chopped.npz'))
 
     # DISK MODEL
     # Profile from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
@@ -146,7 +155,8 @@ def disk_model(parameters: list, options: dict) -> Path:
             disk2d = pickle.load(fff)
     else:
         logging.info(f'Writing to {model_name} directory.')
-        # Surface density parameters fixed from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
+        # Surface density parameters fixed from Menu et al. 2014 (
+        # https://arxiv.org/pdf/1402.6597).
         density_func = partial(sigma_with_rim, **density_params)
 
         disk2d = model_utils.make_disklab2d_model(
@@ -174,29 +184,42 @@ def disk_model(parameters: list, options: dict) -> Path:
 
     # write the detailed scattering matrix files
     for i_grain in range(n_a):
-        do.write_radmc3d_scatmat_file(i_grain, opac_dict, f'{i_grain}', path=radmcfolder)
+        do.write_radmc3d_scatmat_file(i_grain, opac_dict, f'{i_grain}',
+                                      path=radmcfolder)
 
     with open(Path(radmcfolder) / 'dustopac.inp', 'w') as f:
         disklab.radmc3d.write(f, '2               Format number of this file')
-        disklab.radmc3d.write(f, '{}              Nr of dust species'.format(n_a))
+        disklab.radmc3d.write(f,
+                              '{}              Nr of dust species'.format(n_a))
 
         for i_grain in range(n_a):
-            disklab.radmc3d.write(f, '============================================================================')
-            disklab.radmc3d.write(f, '10               Way in which this dust species is read')
+            disklab.radmc3d.write(f,
+                                  '============================================================================')
+            disklab.radmc3d.write(f,
+                                  '10               Way in which this dust '
+                                  'species is read')
             disklab.radmc3d.write(f, '0               0=Thermal grain')
-            disklab.radmc3d.write(f, '{}              Extension of name of dustscatmat_***.inp file'.format(i_grain))
+            disklab.radmc3d.write(f,
+                                  '{}              Extension of name of '
+                                  'dustscatmat_***.inp file'.format(
+                                      i_grain))
 
-        disklab.radmc3d.write(f, '----------------------------------------------------------------------------')
+        disklab.radmc3d.write(f,
+                              '----------------------------------------------------------------------------')
 
     # Run radiative transfer for each observed wavelength
-    for _scat, _lam_image in zip(options['scattering'], options['lam_obs_list']):
+    for _scat, _lam_image in zip(options['scattering'],
+                                 options['lam_obs_list']):
         # Remove previous radmc output file, if existing
         radmc_out_path = radmcfolder / 'image.out'
         if radmc_out_path.exists():
             radmc_out_path.unlink()
 
-        radmc_call = (f"image incl {options['inc']} posang {options['PA'] - 90} npix {options['npix']} lambda {_lam_image * 1e4} "
-                      f"sizeau {2 * options['rout'] / au} setthreads {options['threads']}")
+        radmc_call = (
+            f"image incl {options['inc']} posang {options['PA'] - 90} npix "
+            f"{options['npix']} lambda {_lam_image * 1e4} "
+            f"sizeau {2 * options['rout'] / au} setthreads "
+            f"{options['threads']}")
         if _scat:
             radmc_call += ' stokes'
         logging.info(radmc_call)
@@ -209,7 +232,8 @@ def disk_model(parameters: list, options: dict) -> Path:
         fits_path = radmcfolder.parent / f'{_lam_image * 1e4:.1f}_mu.fits'
         try:
             im_sim = image.readImage(str(radmc_out_path))
-            im_sim.writeFits(str(fits_path), dpc=options['distance'], coord=options['coord'])
+            im_sim.writeFits(str(fits_path), dpc=options['distance'],
+                             coord=options['coord'])
         except FileNotFoundError:
             warnings.warn("Could not find the radmc output file.")
 
@@ -231,7 +255,8 @@ if __name__ == '__main__':
         'distance': 56,
         # The output fits files will be at these wavelengths (micron)
         'lam_obs_list': [0.000165, 0.0015, 0.087],
-        # Set scattering (True) or continuum (False) radiative transfer for lam_obs_list wavelengths
+        # Set scattering (True) or continuum (False) radiative transfer for
+        # lam_obs_list wavelengths
         'scattering': [True, False, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
         'npix': 500,
@@ -249,7 +274,8 @@ if __name__ == '__main__':
     disk_model(model_parameters, model_options)
 
 """
-LOOK FOR ALMA IMAGES OF DISKS WITH CAVITIES, EASIER TO SEE PLANETS, FOR JWST PROPOSAL
+LOOK FOR ALMA IMAGES OF DISKS WITH CAVITIES, EASIER TO SEE PLANETS, FOR JWST
+PROPOSAL
 
 Beta Pictoris last week christine chen
 """

@@ -1,12 +1,12 @@
 import logging
+import pickle
 import shutil
 import warnings
 from pathlib import Path
-import pickle
 
-from astropy import constants as c
 import numpy as np
 import ultranest
+from astropy import constants as c
 
 from menu_model import disk_model
 from src import helper_functions as hf
@@ -33,12 +33,13 @@ model_options = {
     'distance': 56,
     # The output fits files will be at these wavelengths (micron)
     'lam_obs_list': [0.000165, 0.0015, 0.087],
-    # Set scattering (True) or continuum (False) radiative transfer for lam_obs_list wavelengths
+    # Set scattering (True) or continuum (False) radiative transfer for
+    # lam_obs_list wavelengths
     'scattering': [True, False, False],
     'coord': '11h01m51.9053285064s -34d42m17.033218380s',
     'npix': 500,
     'threads': 16,
-    }
+}
 
 profiles_dict = {}
 for _profile in profile_path.iterdir():
@@ -57,7 +58,8 @@ def likelihood(params: list):
 
 def images_likelihood(model_path: Path) -> float:
     """
-    Returns the total chi2 for the model images corresponding to the observed profiles.
+    Returns the total chi2 for the model images corresponding to the
+    observed profiles.
 
     Parameters
     ----------
@@ -75,12 +77,13 @@ def images_likelihood(model_path: Path) -> float:
             warnings.warn(f"No model fits found at wavelength {_profile_key}")
             return -np.inf
         profile = profiles_dict[_profile_key]
-        x_model, y_model, dy_model = model_utils.get_profile_from_fits(model_path,
-                                                                       clip=6,
-                                                                       inc=model_options['inc'],
-                                                                       PA=model_options['PA'],
-                                                                       beam=profile['beam'],
-                                                                       )
+        x_model, y_model, dy_model = model_utils.get_profile_from_fits(
+            model_path,
+            clip=6,
+            inc=model_options['inc'],
+            PA=model_options['PA'],
+            beam=profile['beam'],
+            )
         chi2 += hf.calculate_chisquared(y_model, profile['y'], profile['yerr'])
         return chi2
 
@@ -114,7 +117,8 @@ def prior_transform(params: list) -> np.array:
     lo = 0.001
     hi = 0.1
     # log prior
-    params_transformed[2] = 10 ** (params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
+    params_transformed[2] = 10 ** (
+                params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
 
     # d2g exp
     lo = 0
@@ -126,12 +130,16 @@ def prior_transform(params: list) -> np.array:
     lo = 0.001
     hi = 0.1
     # log prior
-    params_transformed[4] = 10 ** (params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
+    params_transformed[4] = 10 ** (
+                params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
 
     return params_transformed
 
 
 if __name__ == '__main__':
-    param_names = ['size exp', 'amax exp', 'amax coeff', 'd2g exp', 'd2g coeff']
-    sampler = ultranest.ReactiveNestedSampler(param_names, likelihood, prior_transform, log_dir="myanalysis")
+    param_names = ['size exp', 'amax exp', 'amax coeff', 'd2g exp',
+                   'd2g coeff']
+    sampler = ultranest.ReactiveNestedSampler(param_names, likelihood,
+                                              prior_transform,
+                                              log_dir="myanalysis")
     results = sampler.run()

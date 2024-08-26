@@ -32,6 +32,4 @@ setup(
         'tqdm',
         'ultranest',
     ],
-    setup_requires=['pytest-runner'],
-    tests_require=['pytest', 'flake8'],
 )

@@ -1,9 +1,9 @@
-/data_CO_profile/
-/data_C18O/
-/data_test/
+/data/
 /models/
 /observations/
-/opacities_IMLup/
 *.pickle
 *.pkl
-/DIANA/
+/testing_files/
+/runs/
+/opacities/
+/profiles/

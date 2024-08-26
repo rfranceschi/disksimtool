@@ -31,7 +31,8 @@ def make_disklab2d_model(
         show_plots: bool = False
 ):
     """
-    Create a dislkab model and the opacity needed to run a radiative transfer calculation for dust emission.
+    Create a dislkab model and the opacity needed to run a radiative
+    transfer calculation for dust emission.
 
     Parameters
     ----------
@@ -47,17 +48,20 @@ def make_disklab2d_model(
     r_c: float
     opac_fname: str
     profile_funct: callable
-        Normalized profile for the gas surface density distribution. If None, use a LBP self similar solution.
+        Normalized profile for the gas surface density distribution. If
+        None, use a LBP self similar solution.
     show_plots: bool = False
 
     Returns
     -------
 
     """
-    # The different indices in the parameters list correspond to different physical paramters
+    # The different indices in the parameters list correspond to different
+    # physical paramters
 
     size_exp = parameters[0]  # n(a) = a**(4-size_exp)
-    amax_exp = parameters[1]  # a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
+    amax_exp = parameters[
+        1]  # a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
     amax_coeff = parameters[2]
     d2g_exp = parameters[3]
     d2g_coeff = parameters[4]
@@ -72,9 +76,12 @@ def make_disklab2d_model(
     r_sep = 20 * au
     n_sep = int(0.2 * nr)
 
-    # Create a grid more refined at smaller radii, to logarithmically sample the disk.
-    rmod = np.hstack((np.geomspace(rin, r_sep, n_sep + 1)[:-1], np.linspace(r_sep, rout, nr - n_sep)))
-    d = disklab.DiskRadialModel(mstar=mstar, lstar=lstar, tstar=tstar, alpha=alpha, rgrid=rmod)
+    # Create a grid more refined at smaller radii, to logarithmically sample
+    # the disk.
+    rmod = np.hstack((np.geomspace(rin, r_sep, n_sep + 1)[:-1],
+                      np.linspace(r_sep, rout, nr - n_sep)))
+    d = disklab.DiskRadialModel(mstar=mstar, lstar=lstar, tstar=tstar,
+                                alpha=alpha, rgrid=rmod)
     if profile_funct is None:
         raise NotImplementedError
     else:
@@ -83,22 +90,32 @@ def make_disklab2d_model(
         d.compute_rhomid_from_sigma()
 
     if d.mass / mstar > 0.2:
-        warnings.warn(f'Disk mass is unreasonably high: M_disk / Mstar = {d.mass / mstar:.2g}')
+        warnings.warn(
+            f'Disk mass is unreasonably high: M_disk / Mstar = '
+            f'{d.mass / mstar:.2g}')
 
     # Add the dust, based on the dust-to-gas parameters.
     # Experiment d2g distribution.
     d2g = d2g_coeff * (d.r / (70 * au)) ** (-d2g_exp)
     d2g = np.minimum(d2g, 0.1)
-    # We take as scaling radius the edge of the 870 micron image, for simplicity
+    # We take as scaling radius the edge of the 870 micron image,
+    # for simplicity
     a_max = amax_coeff * (d.r / (70 * au)) ** (-amax_exp)
 
     a_i = get_interfaces_from_log_cell_centers(a_opac)
-    # if we change a0 and a1 we have a different grid than a_opac, and the interpolation creates the wrong g parameter
+    # if we change a0 and a1 we have a different grid than a_opac, and the
+    # interpolation creates the wrong g parameter
     #   increase the number of grain size in the opac file
-    #   OR we take ~150 grain sizes in the opac file and then interpolate 15 grains for radmc3d (change a1 in the next
-    #   call). Radmc will still complain though, we would have to recalculate g.
-    a, a_i, sig_da = get_powerlaw_dust_distribution(d.sigma * d2g, np.minimum(a_opac[-1], a_max), q=4 - size_exp,
-                                                    na=n_a, a0=a_i[0], a1=a_i[-1])
+    #   OR we take ~150 grain sizes in the opac file and then interpolate 15
+    #   grains for radmc3d (change a1 in the next
+    #   call). Radmc will still complain though, we would have to
+    #   recalculate g.
+    a, a_i, sig_da = get_powerlaw_dust_distribution(d.sigma * d2g,
+                                                    np.minimum(a_opac[-1],
+                                                               a_max),
+                                                    q=4 - size_exp,
+                                                    na=n_a, a0=a_i[0],
+                                                    a1=a_i[-1])
 
     for _sig, _a in zip(np.transpose(sig_da), a_opac):
         d.add_dust(agrain=_a, xigrain=rho_s, dtg=_sig / d.sigma)
@@ -134,8 +151,10 @@ def make_disklab2d_model(
         ax.legend()
 
     # smooth the mean opacities
-    d.mean_opacity_planck[7:-7] = hf.movingaverage(d.mean_opacity_planck, 10)[7:-7]
-    d.mean_opacity_rosseland[7:-7] = hf.movingaverage(d.mean_opacity_rosseland, 10)[7:-7]
+    d.mean_opacity_planck[7:-7] = hf.movingaverage(d.mean_opacity_planck, 10)[
+                                  7:-7]
+    d.mean_opacity_rosseland[7:-7] = hf.movingaverage(d.mean_opacity_rosseland,
+                                                      10)[7:-7]
 
     if show_plots:
         ax.loglog(d.r / au, d.mean_opacity_planck, 'C0--')
@@ -187,7 +206,8 @@ def make_disklab2d_model(
             print(f"iteration to convergence: {iter}")
             break
         # else:
-        #     print(f"not converged, max change {max(np.abs(tmid_previous / d.tmid - 1))}")
+        #     print(f"not converged, max change {max(np.abs(tmid_previous /
+        #     d.tmid - 1))}")
 
         d.compute_cs_and_hp()
         d.compute_mean_opacity()
@@ -261,7 +281,8 @@ def make_disklab2d_model(
     return disk2d
 
 
-def get_profile_from_fits(fname, clip=2.5, show_plots=False, inc=0, PA=0, z0=0.0, psi=0.0, beam=None, r_norm=None,
+def get_profile_from_fits(fname, clip=2.5, show_plots=False, inc=0, PA=0,
+                          z0=0.0, psi=0.0, beam=None, r_norm=None,
                           norm=None, **kwargs):
     """Get radial profile from fits file.
 
@@ -280,7 +301,8 @@ def get_profile_from_fits(fname, clip=2.5, show_plots=False, inc=0, PA=0, z0=0.0
         inclination and position angle used in the radial profile
 
     z0, psi : float
-        the scale height at 1 arcse and the radial exponent used in the deprojection
+        the scale height at 1 arcse and the radial exponent used in the
+        deprojection
 
     beam : None | tuple
         if None: will be determined by imgcube
@@ -321,7 +343,8 @@ def get_profile_from_fits(fname, clip=2.5, show_plots=False, inc=0, PA=0, z0=0.0
         y *= 1e-23 * data.pix_per_beam / data.beamarea_str
         dy *= 1e-23 * data.pix_per_beam / data.beamarea_str
     else:
-        raise ValueError('unknown unit, please implement conversion to CGS here')
+        raise ValueError(
+            'unknown unit, please implement conversion to CGS here')
 
     if r_norm is not None:
         norm = np.interp(r_norm, x, y)

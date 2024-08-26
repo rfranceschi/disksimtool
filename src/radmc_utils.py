@@ -4,10 +4,14 @@ import disklab
 import numpy as np
 
 
-def write_radmc3d(disk2d, lam, path, show_plots=False, nphot=10000000, nphot_scat=100000):
+def write_radmc3d(disk2d, lam, path, show_plots=False, nphot=10000000,
+                  nphot_scat=100000):
     """
-    convert the disk2d object to radmc3d format and write the radmc3d input files.
+    convert the disk2d object to radmc3d format and write the radmc3d input
+    files.
 
+    Parameters
+    ----------
     disk2d : disklab.Disk2D instance
         the disk
 
@@ -22,6 +26,10 @@ def write_radmc3d(disk2d, lam, path, show_plots=False, nphot=10000000, nphot_sca
 
     nphot : int
         number of photons to send
+
+    Returns
+    -------
+
     """
 
     rmcd = disklab.radmc3d.get_radmc3d_arrays(disk2d, showplots=show_plots)
@@ -46,14 +54,16 @@ def write_radmc3d(disk2d, lam, path, show_plots=False, nphot=10000000, nphot_sca
 
     disklab.radmc3d.write_stars_input(disk2d.disk, lam_mic, path=path)
     disklab.radmc3d.write_grid(ri, thetai, phii, mirror=False, path=path)
-    disklab.radmc3d.write_dust_density(rmcd_temp, fname='dust_temperature.dat', path=path, mirror=False)
+    disklab.radmc3d.write_dust_density(rmcd_temp, fname='dust_temperature.dat',
+                                       path=path, mirror=False)
     disklab.radmc3d.write_dust_density(rho, mirror=False, path=path)
     disklab.radmc3d.write_wavelength_micron(lam_mic, path=path)
     disklab.radmc3d.write_opacity(disk2d, path=path)
     disklab.radmc3d.write_radmc3d_input(
         {
             'scattering_mode': 5,
-            'scattering_mode_max': 5,  # was 5 (most realistic scattering), 1 is isotropic
+            'scattering_mode_max': 5,
+            # was 5 (most realistic scattering), 1 is isotropic
             'nphot': nphot,
             'nphot_scat': nphot_scat,
             'dust_2daniso_nphi': '60',
@@ -94,7 +104,8 @@ def read_radmc_opacityfile(file):
         # read angles and zscat
         if scatter:
             theta = np.fromfile(f, dtype=np.float64, count=n_th, sep=' ')
-            zscat = np.fromfile(f, dtype=np.float64, count=n_th * n_f * 6, sep=' ').reshape([6, n_th, n_f], order='F').T
+            zscat = np.fromfile(f, dtype=np.float64, count=n_th * n_f * 6,
+                                sep=' ').reshape([6, n_th, n_f], order='F').T
             # zscat = np.moveaxis(zscat, 0, 1)
 
     data = data.reshape(n_f, ncol)
@@ -125,7 +136,19 @@ def read_radmc_opacityfile(file):
 
 
 def get_line(filehandle, comments=('=', '#')):
-    "helper function: reads next line from file but skips comments and empty lines"
+    """
+    Helper function: reads next line from file but skips comments and empty
+    lines.
+
+    Parameters
+    ----------
+    filehandle
+    comments
+
+    Returns
+    -------
+
+    """
     line = filehandle.readline()
     while line.startswith(comments) or line.strip() == '':
         line = filehandle.readline()

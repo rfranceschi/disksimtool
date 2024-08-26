@@ -5,7 +5,7 @@ from setuptools import setup
 
 def check_dependencies():
     try:
-        subprocess.check_call(['radmc3d'])
+        subprocess.check_call(['radmc3d'], stdout=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         raise RuntimeError("Required software 'software_name' is not "
                            "installed.")

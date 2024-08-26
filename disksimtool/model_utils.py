@@ -3,8 +3,6 @@ import warnings
 import astropy.constants as c
 import disklab
 import numpy as np
-from dipsy import get_powerlaw_dust_distribution
-from dipsy.utils import get_interfaces_from_log_cell_centers
 from gofish import imagecube
 from matplotlib import pyplot as plt
 
@@ -15,6 +13,119 @@ M_sun = c.M_sun.cgs.value
 L_sun = c.L_sun.cgs.value
 R_sun = c.R_sun.cgs.value
 
+
+def get_interfaces_from_log_cell_centers(x):
+    """
+    Returns the cell interfaces for an array of logarithmic
+    cell centers.
+
+    Arguments:
+    ----------
+
+    x : array
+    :   Array of logarithmically spaced cell centers for
+        which the interfaces should be calculated
+
+    Output:
+    -------
+
+    xi : array
+    :    Array of length len(x)+1 containing the grid interfaces
+         defined such that 0.5*(xi[i]+xi[i+1]) = xi
+    """
+    x = np.asarray(x)
+    B = x[1] / x[0]
+    A = (B + 1) / 2.
+    xi = np.append(x / A, x[-1] * B / A)
+    return xi
+
+
+def get_powerlaw_dust_distribution(sigma_d, a_max, q=3.5, na=10, a0=None, a1=None):
+    """
+    Makes a power-law size distribution up to a_max, normalized to the given surface density.
+
+    Arguments:
+    ----------
+
+    sigma_d : array
+        dust surface density array
+
+    a_max : array
+        maximum particle size array
+
+    Keywords:
+    ---------
+
+    q : float | array
+        particle size index, n(a) propto a**-q
+        if array, it has to have the same length as sigma_d
+
+    na : int
+        number of particle size bins
+
+    a0 : float
+        minimum particle size
+
+    a1 : float
+        maximum particle size
+
+    Returns:
+    --------
+
+    a : array
+        particle size grid (centers)
+
+    a_i : array
+        particle size grid (interfaces)
+
+    sig_da : array
+        particle size distribution of size (len(sigma_d), na)
+    """
+
+    if a0 is None:
+        a0 = a_max.min()
+
+    if a1 is None:
+        a1 = 2 * a_max.max()
+
+    nr = len(sigma_d)
+    sig_da = np.zeros([nr, na]) + 1e-100
+
+    a_i = np.logspace(np.log10(a0), np.log10(a1), na + 1)
+    a = 0.5 * (a_i[1:] + a_i[:-1])
+
+    # we want to turn q into an array if it isn't one already
+    q = q * np.ones(nr)
+
+    for ir in range(nr):
+
+        if a_max[ir] <= a0:
+            sig_da[ir, 0] = 1
+        else:
+            i_up = np.where(a_i < a_max[ir])[0][-1]
+
+            # filling all bins that are strictly below a_max
+
+            if q[ir] == 4.0:
+                for ia in range(i_up):
+                    sig_da[ir, ia] = np.log(a_i[ia + 1] / a_i[ia])
+
+                # filling the bin that contains a_max
+                sig_da[ir, i_up] = np.log(a_max[ir] / a_i[i_up])
+            else:
+                for ia in range(i_up):
+                    sig_da[ir, ia] = a_i[ia +
+                                         1]**(4 - q[ir]) - a_i[ia]**(4 - q[ir])
+
+                # filling the bin that contains a_max
+                sig_da[ir, i_up] = a_max[ir]**(4 - q[ir]) - \
+                    a_i[i_up]**(4 - q[ir])
+
+        # normalize
+
+        sig_da[ir, :] = sig_da[ir, :] / sig_da[ir, :].sum() * sigma_d[ir]
+
+    return a, a_i, sig_da
 
 def make_disklab2d_model(
         parameters: list,

@@ -22,7 +22,6 @@ setup(
     packages=['disksimtool'],
     install_requires=[
         'astropy',
-        'disklab',
         'dsharp_opac',
         'gofish',
         'numpy',

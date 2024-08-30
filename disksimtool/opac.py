@@ -18,8 +18,6 @@ def read_opacs(fname):
     return opac_dict
 
 
-
-
 def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dsharp'):
     """
     Wrapper for optool to calculate DSHARP opacities in RADMC-3D format.

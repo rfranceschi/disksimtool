@@ -260,7 +260,7 @@ if __name__ == '__main__':
         'scattering': [True, False, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
         'npix': 500,
-        'threads': 16,
+        'threads': 1,
     }
 
     model_parameters = [

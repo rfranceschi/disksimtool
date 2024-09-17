@@ -127,6 +127,7 @@ def get_powerlaw_dust_distribution(sigma_d, a_max, q=3.5, na=10, a0=None, a1=Non
 
     return a, a_i, sig_da
 
+
 def make_disklab2d_model(
         parameters: list,
         mstar: float,
@@ -136,7 +137,7 @@ def make_disklab2d_model(
         alpha: float,
         rin: float,
         rout: float,
-        # r_c: float,
+        r_c: float,
         opac_fname: str,
         profile_funct: callable = None,
         show_plots: bool = False
@@ -171,8 +172,7 @@ def make_disklab2d_model(
     # physical paramters
 
     size_exp = parameters[0]  # n(a) = a**(4-size_exp)
-    amax_exp = parameters[
-        1]  # a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
+    amax_exp = parameters[1]  # a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
     amax_coeff = parameters[2]
     d2g_exp = parameters[3]
     d2g_coeff = parameters[4]
@@ -207,11 +207,11 @@ def make_disklab2d_model(
 
     # Add the dust, based on the dust-to-gas parameters.
     # Experiment d2g distribution.
-    d2g = d2g_coeff * (d.r / (70 * au)) ** (-d2g_exp)
+    d2g = d2g_coeff * (d.r / r_c) ** (-d2g_exp)
     d2g = np.minimum(d2g, 0.1)
     # We take as scaling radius the edge of the 870 micron image,
     # for simplicity
-    a_max = amax_coeff * (d.r / (70 * au)) ** (-amax_exp)
+    a_max = amax_coeff * (d.r / r_c) ** (-amax_exp)
 
     a_i = get_interfaces_from_log_cell_centers(a_opac)
     # if we change a0 and a1 we have a different grid than a_opac, and the

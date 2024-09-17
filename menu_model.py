@@ -97,7 +97,7 @@ def disk_model(parameters: list, options: dict) -> Path:
     # Read if they exist, or calculate
     try:
         opac_dict = opac.read_opacs(
-            Path('opacities/dustkappa_p30_chopped.npz'))
+            Path(options['fname_opac']))
         # Double check that the wavelengths at which we want to compute the
         # images are in the opacity lambda array.
         lam_opac = opac_dict['lam']
@@ -114,7 +114,6 @@ def disk_model(parameters: list, options: dict) -> Path:
         # opacities_IMLup and store them in a local file,
         # if it doesn't exist yet. Careful, that takes of the order of >2h.
         n_lam = 200  # number of wavelength points
-        # n_a = 30  # number of particle sizes
         n_a = 30  # number of particle sizes
         n_theta = 181  # number of angles in the scattering phase function
         porosity = 0.3
@@ -168,6 +167,7 @@ def disk_model(parameters: list, options: dict) -> Path:
             options['alpha'],
             options['rin'],
             options['rout'],
+            options['r_c'],
             options['fname_opac'],
             density_func,
             show_plots=False
@@ -248,6 +248,7 @@ if __name__ == '__main__':
         'nr': 400,
         'rin': 0.32 * au,
         'rout': 250 * au,
+        'r_c': 70 * au,
         'alpha': 1e-5,
         'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
         'inc': 7,

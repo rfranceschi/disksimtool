@@ -2,13 +2,14 @@ import logging
 import pickle
 import shutil
 import warnings
+from functools import partial
 from pathlib import Path
 
 import numpy as np
 import ultranest
 from astropy import constants as c
 
-from menu_model import disk_model
+from menu_model import disk_model, sigma_with_rim
 from disksimtool import helper_functions as hf
 from disksimtool import model_utils
 
@@ -30,7 +31,7 @@ model_options = {
     'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
     'inc': 7,
     'PA': 0,
-    'distance': 56,
+    'distance_pc': 56,
     # The output fits files will be at these wavelengths (micron)
     'lam_obs_list': [0.000165, 0.0015, 0.087],
     # Set scattering (True) or continuum (False) radiative transfer for

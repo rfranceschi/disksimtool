@@ -132,14 +132,14 @@ def disk_model(parameters: list, options: dict) -> Path:
 
     # DISK MODEL
     # Profile from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
-    r = np.linspace(options['rin'], options['rout'], 1000)
-    density_params = {
-        'sigma_exp': 24,
-        'r_exp': 3.1 * au,
-        'p': 0.5,
-        'w': 0.45,
-    }
-    profile = sigma_with_rim(r, **density_params)
+    r = np.linspace(options['rin'], options['rout'], options['nr'])
+    # density_params = {
+    #     'sigma_exp': 24,
+    #     'r_exp': 3.1 * au,
+    #     'p': 0.5,
+    #     'w': 0.45,
+    # }
+    profile = options['sigma_funct'](r)
     disk_gas_mass = (integrate_sigma(r, profile) / c.M_sun.cgs.value)
     logging.info(f'Total disk mass: {disk_gas_mass:.2} M_sun')
 
@@ -156,7 +156,7 @@ def disk_model(parameters: list, options: dict) -> Path:
         logging.info(f'Writing to {model_name} directory.')
         # Surface density parameters fixed from Menu et al. 2014 (
         # https://arxiv.org/pdf/1402.6597).
-        density_func = partial(sigma_with_rim, **density_params)
+        # density_func = partial(sigma_with_rim, **density_params)
 
         disk2d = model_utils.make_disklab2d_model(
             parameters,
@@ -169,7 +169,7 @@ def disk_model(parameters: list, options: dict) -> Path:
             options['rout'],
             options['r_c'],
             options['fname_opac'],
-            density_func,
+            options['sigma_funct'],
             show_plots=False
         )
 
@@ -229,10 +229,10 @@ def disk_model(parameters: list, options: dict) -> Path:
             executable=str(radmc3d_exec)
         )
 
-        fits_path = radmcfolder.parent / f'{_lam_image * 1e4:.1f}_mu.fits'
+        fits_path = radmcfolder.parent / f'{_lam_image * 1e4:.1f}_micron.fits'
         try:
             im_sim = image.readImage(str(radmc_out_path))
-            im_sim.writeFits(str(fits_path), dpc=options['distance'],
+            im_sim.writeFits(str(fits_path), dpc=options['distance_pc'],
                              coord=options['coord'])
         except FileNotFoundError:
             warnings.warn("Could not find the radmc output file.")
@@ -241,6 +241,14 @@ def disk_model(parameters: list, options: dict) -> Path:
 
 
 if __name__ == '__main__':
+    params = {
+        'sigma_exp': 24,
+        'r_exp': 3.1 * au,
+        'p': 0.5,
+        'w': 0.45,
+    }
+    sigma_funct = partial(sigma_with_rim, **params)
+
     model_options = {
         'mstar': 0.8 * M_sun,
         'lstar': 1 * L_sun,
@@ -253,7 +261,7 @@ if __name__ == '__main__':
         'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
         'inc': 7,
         'PA': 0,
-        'distance': 56,
+        'distance_pc': 56,
         # The output fits files will be at these wavelengths (micron)
         'lam_obs_list': [0.000165, 0.0015, 0.087],
         # Set scattering (True) or continuum (False) radiative transfer for
@@ -262,10 +270,11 @@ if __name__ == '__main__':
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
         'npix': 500,
         'threads': 1,
+        'sigma_funct': sigma_funct,
     }
 
     model_parameters = [
-        0.87754,  # grain size distribution, a**(4-x)
+        0.9,  # grain size distribution, a**(4-x)
         2.87614,  # max grain size radial distribution exponent
         0.00171,  # grain size distribution, a**(4-x)
         2.87614,  # d2g exp

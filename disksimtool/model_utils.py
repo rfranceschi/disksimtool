@@ -1,4 +1,5 @@
 import warnings
+from pathlib import Path
 
 import astropy.constants as c
 import disklab
@@ -244,6 +245,8 @@ def make_disklab2d_model(
         ax.set_ylim(1e-5, 1e0)
         ax.legend()
 
+        plt.savefig('./model_plots.png')
+
     # load the opacity from the previously calculated opacity table
     for dust in d.dust:
         dust.grain.read_opacity(str(opac_fname))
@@ -339,6 +342,7 @@ def make_disklab2d_model(
         plt.suptitle("Midplane iterations")
         plt.legend()
         plt.show()
+        plt.savefig('./midplane_iterations.png')
 
     # ---- Make a 2D model out of it ----
 
@@ -392,9 +396,11 @@ def make_disklab2d_model(
     return disk2d
 
 
-def get_profile_from_fits(fname, clip=2.5, show_plots=False, inc=0, PA=0,
-                          z0=0.0, psi=0.0, beam=None, r_norm=None,
-                          norm=None, **kwargs):
+def get_profile_from_fits(fname: Path, clip: float =2.5,
+                          show_plots: bool = False, inc: float= 0,
+                          PA: float = 0, z0: float = 0.0, psi: float = 0.0,
+                          beam: tuple = None, r_norm: float = None,
+                          norm: float = None, **kwargs):
     """Get radial profile from fits file.
 
     Reads a fits file and determines a radial profile with `imagecube`

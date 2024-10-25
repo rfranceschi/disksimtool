@@ -79,7 +79,8 @@ def integrate_sigma(r: np.array, sigma: np.array) -> float:
     return simpson(y=2 * np.pi * r * sigma, x=r)
 
 
-def disk_model(parameters: list, options: dict) -> Path:
+def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
+        Path):
     """
 
     Parameters
@@ -88,6 +89,7 @@ def disk_model(parameters: list, options: dict) -> Path:
         Free parameters.
     options: list
         Fixed parameters.
+    show_plots: bool
 
     Returns
     -------
@@ -170,7 +172,7 @@ def disk_model(parameters: list, options: dict) -> Path:
             options['r_c'],
             options['fname_opac'],
             options['sigma_funct'],
-            show_plots=False
+            show_plots=show_plots
         )
 
         model_path.parent.mkdir(parents=True, exist_ok=True)

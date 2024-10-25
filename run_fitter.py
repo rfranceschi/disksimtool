@@ -72,6 +72,11 @@ def images_likelihood(model_path: Path) -> float:
 
     """
     chi2 = 0
+
+
+    # for output_fits in model_path.glob('*.fits'):
+    #     obs_profile = profiles_dict[output_fits.stem.split('_', 1)[1]]
+
     for _profile_key in profiles_dict.keys():
         model_fits = model_path / ('image_' + _profile_key + '.fits')
         if not model_fits.exists():
@@ -138,9 +143,27 @@ def prior_transform(params: list) -> np.array:
 
 
 if __name__ == '__main__':
+    params = {
+        'sigma_exp': 24,
+        'r_exp': 3.1 * au,
+        'p': 0.5,
+        'w': 0.45,
+    }
+    sigma_funct = partial(sigma_with_rim, **params)
+    model_options['sigma_funct'] = sigma_funct
+
     param_names = ['size exp', 'amax exp', 'amax coeff', 'd2g exp',
                    'd2g coeff']
-    sampler = ultranest.ReactiveNestedSampler(param_names, likelihood,
-                                              prior_transform,
-                                              log_dir="myanalysis")
-    results = sampler.run()
+    model_parameters = [
+        0.9,  # grain size distribution, a**(4-x)
+        2.87614,  # max grain size radial distribution exponent
+        0.00171,  # grain size distribution, a**(4-x)
+        2.87614,  # d2g exp
+        0.00171,  # d2g at 70 au
+    ]
+    likelihood(model_parameters)
+    print(profiles_dict.keys())
+    # sampler = ultranest.ReactiveNestedSampler(param_names, likelihood,
+    #                                           prior_transform,
+    #                                           log_dir="myanalysis")
+    # results = sampler.run()

@@ -231,7 +231,7 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
             executable=str(radmc3d_exec)
         )
 
-        fits_path = radmcfolder.parent / f'{_lam_image * 1e4:.1f}_micron.fits'
+        fits_path = radmcfolder.parent / f'{_lam_image * 1e4:.1f}_mu.fits'
         try:
             im_sim = image.readImage(str(radmc_out_path))
             im_sim.writeFits(str(fits_path), dpc=options['distance_pc'],

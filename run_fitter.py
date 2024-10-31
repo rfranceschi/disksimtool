@@ -5,9 +5,12 @@ import warnings
 from functools import partial
 from pathlib import Path
 
+import h5py
 import numpy as np
 import ultranest
 from astropy import constants as c
+from astropy import units as u
+from matplotlib import pyplot as plt
 
 from menu_model import disk_model, sigma_with_rim
 from disksimtool import helper_functions as hf
@@ -18,7 +21,7 @@ L_sun = c.L_sun.cgs.value
 au = c.au.cgs.value
 
 obs_path = Path('./observations/')
-profile_path = Path('./profiles/')
+profiles_path = Path('./profiles/')
 
 model_options = {
     'mstar': 0.8 * M_sun,
@@ -27,32 +30,35 @@ model_options = {
     'nr': 400,
     'rin': 0.32 * au,
     'rout': 250 * au,
+    'r_c': 50 * au,
     'alpha': 1e-5,
     'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
     'inc': 7,
     'PA': 0,
     'distance_pc': 56,
     # The output fits files will be at these wavelengths (micron)
-    'lam_obs_list': [0.000165, 0.0015, 0.087],
+    'lam_obs_list': [0.000165, 0.087],
     # Set scattering (True) or continuum (False) radiative transfer for
     # lam_obs_list wavelengths
-    'scattering': [True, False, False],
+    'scattering': [True, False],
     'coord': '11h01m51.9053285064s -34d42m17.033218380s',
     'npix': 500,
     'threads': 16,
 }
 
 profiles_dict = {}
-for _profile in profile_path.iterdir():
-    with open(_profile, 'rb') as f:
-        profile_key = _profile.stem.split('_', 1)[1]
-        profiles_dict[profile_key] = pickle.load(f)
+fpath = profiles_path / 'observed_profiles.h5'
+with h5py.File(fpath, 'r') as f:
+    for _key in f.keys():
+        profiles_dict[_key] = {}
+        for _profile_key in f[_key].keys():
+            profiles_dict[_key][_profile_key] = f[_key][_profile_key][:]
 
 
 def likelihood(params: list):
     model_dir = disk_model(params, model_options)
     lh = images_likelihood(model_dir)
-    shutil.rmtree(model_dir)
+    # shutil.rmtree(model_dir)
     logging.info(lh)
     return lh
 
@@ -74,25 +80,24 @@ def images_likelihood(model_path: Path) -> float:
     chi2 = 0
 
 
-    # for output_fits in model_path.glob('*.fits'):
-    #     obs_profile = profiles_dict[output_fits.stem.split('_', 1)[1]]
+    for output_fits in model_path.glob('*.fits'):
+        obs_profile = profiles_dict[output_fits.stem]
 
-    for _profile_key in profiles_dict.keys():
-        model_fits = model_path / ('image_' + _profile_key + '.fits')
-        if not model_fits.exists():
-            warnings.warn(f"No model fits found at wavelength {_profile_key}")
-            return -np.inf
-        profile = profiles_dict[_profile_key]
         x_model, y_model, dy_model = model_utils.get_profile_from_fits(
-            model_path,
+            output_fits,
             clip=6,
             inc=model_options['inc'],
             PA=model_options['PA'],
-            beam=profile['beam'],
-            )
-        chi2 += hf.calculate_chisquared(y_model, profile['y'], profile['yerr'])
-        return chi2
+            dist=model_options['distance_pc'],
+            beam=obs_profile['beam'],
+        )
 
+        r_in_as = 0.5
+        condition = np.nonzero(np.asarray(x_model > r_in_as))
+        chi2 += hf.calculate_chisquared(y_model[condition],
+                                        obs_profile['y'][condition],
+                                        obs_profile['dy'][condition])
+        return chi2
 
 def prior_transform(params: list) -> np.array:
     """
@@ -154,16 +159,7 @@ if __name__ == '__main__':
 
     param_names = ['size exp', 'amax exp', 'amax coeff', 'd2g exp',
                    'd2g coeff']
-    model_parameters = [
-        0.9,  # grain size distribution, a**(4-x)
-        2.87614,  # max grain size radial distribution exponent
-        0.00171,  # grain size distribution, a**(4-x)
-        2.87614,  # d2g exp
-        0.00171,  # d2g at 70 au
-    ]
-    likelihood(model_parameters)
-    print(profiles_dict.keys())
-    # sampler = ultranest.ReactiveNestedSampler(param_names, likelihood,
-    #                                           prior_transform,
-    #                                           log_dir="myanalysis")
-    # results = sampler.run()
+    sampler = ultranest.ReactiveNestedSampler(param_names, likelihood,
+                                              prior_transform,
+                                              log_dir="myanalysis")
+    results = sampler.run()

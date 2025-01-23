@@ -6,18 +6,19 @@ from pathlib import Path
 import dsharp_opac as opacity
 import numpy as np
 import tqdm
+from autologging import traced
 from disklab.radmc3d import write_wavelength_micron
 import dsharp_opac as do
 
 from disksimtool import radmc_utils
 
-
+@traced
 def read_opacs(fname):
     with np.load(fname) as fid:
         opac_dict = {k: v for k, v in fid.items()}
     return opac_dict
 
-
+@traced
 def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dsharp'):
     """
     Wrapper for optool to calculate DSHARP opacities in RADMC-3D format.
@@ -136,7 +137,7 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
 
     return output
 
-
+@traced
 def make_opacs(a, lam, fname='dustkappa', porosity=None, constants=None, n_theta=101, optool=True,
                composition='dsharp'):
     """make optical constants file"""
@@ -243,13 +244,15 @@ def make_opacs(a, lam, fname='dustkappa', porosity=None, constants=None, n_theta
 
     return opac_dict
 
+@traced
+def compute_opac(lam_opac, n_a, n_theta, porosity,
+                 fname: str = 'opacities/dustkappa'):
 
-def compute_opac(lam_opac, n_a, n_theta, porosity):
     a_opac = np.logspace(-5, 0, n_a)
     composition = 'diana'
 
     # Make opacities if necessary
-    fname = Path('opacities/dustkappa')
+    fname = Path(fname)
     fname.parent.mkdir(exist_ok=True)
     opac_dict = make_opacs(a_opac, lam_opac, fname=str(fname), porosity=porosity, n_theta=n_theta,
                            composition=composition, optool=True)
@@ -275,7 +278,7 @@ def compute_opac(lam_opac, n_a, n_theta, porosity):
 
     do.write_disklab_opacity(fname_opac_chopped, opac_dict)
 
-
+@traced
 def chop_forward_scattering(opac_dict, chopforward=5):
     """Chop the forward scattering.
 

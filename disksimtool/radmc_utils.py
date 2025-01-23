@@ -2,8 +2,10 @@ from pathlib import Path
 
 import disklab
 import numpy as np
+from autologging import traced
 
 
+@traced
 def write_radmc3d(disk2d, lam, path, show_plots=False, nphot=10000000,
                   nphot_scat=100000):
     """
@@ -71,7 +73,7 @@ def write_radmc3d(disk2d, lam, path, show_plots=False, nphot=10000000,
         },
         path=path)
 
-
+@traced
 def read_radmc_opacityfile(file):
     """reads RADMC-3D opacity files, returns dictionary with its contents."""
     file = Path(file)
@@ -134,7 +136,7 @@ def read_radmc_opacityfile(file):
 
     return output
 
-
+@traced
 def get_line(filehandle, comments=('=', '#')):
     """
     Helper function: reads next line from file but skips comments and empty

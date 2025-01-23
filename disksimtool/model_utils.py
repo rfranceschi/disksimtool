@@ -1,6 +1,7 @@
 import warnings
 from pathlib import Path
 
+from autologging import traced, logged
 import astropy.constants as c
 import disklab
 import numpy as np
@@ -13,7 +14,6 @@ au = c.au.cgs.value
 M_sun = c.M_sun.cgs.value
 L_sun = c.L_sun.cgs.value
 R_sun = c.R_sun.cgs.value
-
 
 def get_interfaces_from_log_cell_centers(x):
     """
@@ -39,7 +39,6 @@ def get_interfaces_from_log_cell_centers(x):
     A = (B + 1) / 2.
     xi = np.append(x / A, x[-1] * B / A)
     return xi
-
 
 def get_powerlaw_dust_distribution(sigma_d, a_max, q=3.5, na=10, a0=None, a1=None):
     """
@@ -128,7 +127,8 @@ def get_powerlaw_dust_distribution(sigma_d, a_max, q=3.5, na=10, a0=None, a1=Non
 
     return a, a_i, sig_da
 
-
+@logged
+@traced
 def make_disklab2d_model(
         parameters: list,
         mstar: float,
@@ -298,6 +298,7 @@ def make_disklab2d_model(
 
     n_iter = 100
     for iter in range(n_iter):
+        make_disklab2d_model._log.debug(f'1D iteration {iter + 1}')
         tmid_previous = d.tmid
         hs_previous = d.hs
         flidx_previous = d.flidx
@@ -317,7 +318,7 @@ def make_disklab2d_model(
         d.tmid = tmid_previous + 0.08 * (d.tmid - tmid_previous)
 
         if all(np.abs(tmid_previous / d.tmid - 1) < 0.01):
-            print(f"iteration to convergence: {iter}")
+            make_disklab2d_model._log.debug('Converged.')
             break
         # else:
         #     print(f"not converged, max change {max(np.abs(tmid_previous /
@@ -346,12 +347,14 @@ def make_disklab2d_model(
 
     # ---- Make a 2D model out of it ----
 
+    make_disklab2d_model._log.debug('Create Disk2D model...')
     disk2d = disklab.Disk2D(
         disk=d,
         meanopacitymodel=d.meanopacitymodel,
-        nz=100,
+        nz=50,
         zrmax=0.5,
     )
+    make_disklab2d_model._log.debug('Done.')
 
     # taken from snippet vertstruc 2d_1
     # for vert in disk2d.verts:
@@ -365,16 +368,21 @@ def make_disklab2d_model(
 
     # our own vertical structure, here we turn of viscous heating
 
+    make_disklab2d_model._log.debug(len(disk2d.verts))
     for vert in disk2d.verts:
         vert.compute_mean_opacity()
         vert.irradiate_with_flaring_index()
 
-    disk2d.radial_raytrace()
+    # disk2d.radial_raytrace()
 
     n_iter = 20
     for iter in range(n_iter):
+        make_disklab2d_model._log.debug('Start ray tracing.')
         disk2d.radial_raytrace()
+        make_disklab2d_model._log.debug('Ray tracing done.')
         for i, vert in enumerate(disk2d.verts):
+            make_disklab2d_model._log.debug(f'2D iteration {iter + 1}, '
+                                            f'vertical lvl {i}.')
             vert.compute_rhogas_hydrostatic()
             vert.rhogas = hf.running_average(vert.rhogas, n=n_average)
             vert.compute_mean_opacity()
@@ -395,7 +403,7 @@ def make_disklab2d_model(
     # --- done setting up the radmc3d model ---
     return disk2d
 
-
+@traced
 def get_profile_from_fits(fname: Path, clip: float =2.5,
                           show_plots: bool = False, inc: float= 0,
                           PA: float = 0, z0: float = 0.0, psi: float = 0.0,
@@ -439,7 +447,7 @@ def get_profile_from_fits(fname: Path, clip: float =2.5,
     """
 
     if norm is not None and r_norm is not None:
-        raise ValueError('only norm or r_norm can be set, not both!')
+        raise ValueError('Only norm or r_norm can be set, not both!')
 
     if isinstance(fname, imagecube):
         data = fname
@@ -450,25 +458,31 @@ def get_profile_from_fits(fname: Path, clip: float =2.5,
         data.bmaj, data.bmin, data.bpa = beam
         data.beamarea_arcsec = data._calculate_beam_area_arcsec()
         data.beamarea_str = data._calculate_beam_area_str()
-
     x, y, dy = data.radial_profile(inc=inc, PA=PA, z0=z0, psi=psi, **kwargs)
 
-    if data.bunit.lower() == 'jy/beam':
-        y *= 1e-23 / data.beamarea_str
-        dy *= 1e-23 / data.beamarea_str
-    elif data.bunit.lower() == 'jy/pixel':
-        y *= 1e-23 * data.pix_per_beam / data.beamarea_str
-        dy *= 1e-23 * data.pix_per_beam / data.beamarea_str
-    else:
-        raise ValueError(
-            'unknown unit, please implement conversion to CGS here')
+    if not data.bunit.lower() == 'jy/beam':
+        if data.bunit.lower() == 'jy/pixel':
+            y *= data.pix_per_beam
+            dy *= data.pix_per_beam
+        else:
+            raise ValueError(
+                    'Unknown unit, please implement conversion to Jy/beam here.')
+
+        # if data.bunit.lower() == 'jy/beam':
+        #     y *= 1e-23 / data.beamarea_str
+        #     dy *= 1e-23 / data.beamarea_str
+        # elif data.bunit.lower() == 'jy/pixel':
+        #     y *= 1e-23 * data.pix_per_beam / data.beamarea_str
+        #     dy *= 1e-23 * data.pix_per_beam / data.beamarea_str
+        # else:
+        #     raise ValueError(
+        #         'Unknown unit, please implement conversion to CGS here.')
 
     if r_norm is not None:
         norm = np.interp(r_norm, x, y)
         y /= norm
         dy /= norm
-
-    if norm is not None:
+    elif norm is not None:
         y /= norm
         dy /= norm
 

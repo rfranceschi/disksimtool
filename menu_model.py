@@ -1,5 +1,6 @@
 import logging
 import pickle
+import shutil
 import warnings
 from functools import partial
 from pathlib import Path
@@ -15,7 +16,7 @@ import disksimtool.model_utils as model_utils
 import disksimtool.opac as opac
 import disksimtool.radmc_utils as radmc_utils
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 radmc3d_exec = Path('~/bin/radmc3d').expanduser()
 
 au = c.au.cgs.value
@@ -116,7 +117,7 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
         # opacities_IMLup and store them in a local file,
         # if it doesn't exist yet. Careful, that takes of the order of >2h.
         n_lam = 200  # number of wavelength points
-        n_a = 30  # number of particle sizes
+        n_a = 100  # number of particle sizes
         n_theta = 181  # number of angles in the scattering phase function
         porosity = 0.3
 
@@ -128,9 +129,9 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
             ilam = np.abs(lam_opac - _lam_obs).argmin()
             lam_opac[ilam] = _lam_obs
 
-        opac.compute_opac(lam_opac, n_a, n_theta, porosity)
-        opac_dict = opac.read_opacs(
-            Path('opacities/dustkappa_p30_chopped.npz'))
+        opac.compute_opac(lam_opac, n_a, n_theta, porosity,
+                          fname=options['fname_opac'])
+        opac_dict = opac.read_opacs(Path(options['fname_opac']))
 
     # DISK MODEL
     # Profile from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
@@ -147,7 +148,7 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
 
     models_root = Path('./runs/')
 
-    model_name = 'model_' + '_'.join([f'{_par:.5f}' for _par in parameters])
+    model_name = 'model_' + '_'.join([f'{_par}' for _par in parameters])
     model_path = models_root / model_name / 'model.pkl'
 
     if model_path.is_file():
@@ -252,42 +253,55 @@ if __name__ == '__main__':
     sigma_funct = partial(sigma_with_rim, **params)
 
     model_options = {
-        'mstar': 0.8 * M_sun,
-        'lstar': 1 * L_sun,
+        'mstar': 0.75 * M_sun,
+        'lstar': 0.34 * L_sun,
         'tstar': 3810,
         'nr': 400,
         'rin': 0.32 * au,
         'rout': 250 * au,
-        'r_c': 70 * au,
-        'alpha': 1e-5,
+        'r_c': 30 * au,
+        'alpha': 1e-3,
         'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
         'inc': 7,
         'PA': 0,
         'distance_pc': 56,
         # The output fits files will be at these wavelengths (micron)
-        'lam_obs_list': [0.000165, 0.0015, 0.087],
-        # Set scattering (True) or continuum (False) radiative transfer for
         # lam_obs_list wavelengths
-        'scattering': [True, False, False],
+        # 'lam_obs_list': [0.000165, 0.0015, 0.087],
+        'lam_obs_list': [0.000165, 0.087],
+        # Set scattering (True) or continuum (False) radiative transfer for
+        # 'scattering': [True, False, False],
+        'scattering': [True, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
-        'npix': 500,
-        'threads': 1,
+        'npix': 200,
+        'threads': 16,
         'sigma_funct': sigma_funct,
     }
 
-    model_parameters = [
-        0.9,  # grain size distribution, a**(4-x)
-        2.87614,  # max grain size radial distribution exponent
-        0.00171,  # grain size distribution, a**(4-x)
-        2.87614,  # d2g exp
-        0.00171,  # d2g at 70 au
-    ]
+    # model_parameters = [
+    #     0.9,  # grain size distribution, a**(4-x)
+    #     6,  # max grain size radial distribution exponent
+    #     1.0,  # max grain size at r_c
+    #     4,  # d2g exp
+    #     0.3,  # d2g at r_c
+    # ]
 
-    disk_model(model_parameters, model_options)
+    # model_0.5_5.0_1.0_5.0_0.1
+    p_0 = np.linspace(0.3, 0.7, 5)
+    p_1 = np.linspace(3, 5, 5)
+    p_2 = np.logspace(0.8, 0.2, 5)
+    p_3 = np.linspace(4, 6, 5)
+    p_4 = np.logspace(0.2, 0.05, 5)
 
-"""
-LOOK FOR ALMA IMAGES OF DISKS WITH CAVITIES, EASIER TO SEE PLANETS, FOR JWST
-PROPOSAL
+    P_0, P_1, P_2, P_3, P_4 = np.asarray(np.meshgrid(p_0, p_1, p_2, p_3, p_4))
 
-Beta Pictoris last week christine chen
-"""
+    grid = np.column_stack([P_0.ravel(), P_1.ravel(), P_2.ravel(), P_3.ravel(),
+                            P_4.ravel()])
+
+    # grid = [[0.33333333, 5.55555556, 1.6       , 4.72222222, 0.1       ]]
+    for i, _params in enumerate(grid):
+        model_dir = disk_model(_params, model_options)
+        shutil.rmtree(model_dir / 'radmc_run')
+        with open(model_dir / 'model_info.txt', "w") as file:
+            file.write(f"Model parameters:   {_params}\n")
+        # model_dir.rename(model_dir.parent / f'model_{i}')

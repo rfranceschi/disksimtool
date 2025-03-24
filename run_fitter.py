@@ -8,13 +8,14 @@ import shutil
 import sys
 import warnings
 
-from autologging import TRACE, traced
-import h5py
-import numpy as np
-import ultranest
 from astropy import constants as c
 from astropy import units as u
+from autologging import TRACE, traced
+import gofish as gf
+import h5py
 from matplotlib import pyplot as plt
+import numpy as np
+import ultranest
 
 from menu_model import disk_model, sigma_with_rim
 from disksimtool import helper_functions as hf
@@ -29,6 +30,10 @@ logging.basicConfig(
 M_sun = c.M_sun.cgs.value
 L_sun = c.L_sun.cgs.value
 au = c.au.cgs.value
+
+distance = 56 * u.pc
+incl = 7
+PA = 0
 
 obs_path = Path('./observations/')
 profiles_path = Path('./profiles/')
@@ -191,6 +196,13 @@ def run_and_clean(params):
 
 
 if __name__ == '__main__':
+    params = {
+        'sigma_exp': 24,
+        'r_exp': 3.1 * au,
+        'p': 0.5,
+        'w': 0.45,
+    }
+    sigma_funct = partial(sigma_with_rim, **params)
     model_options = {
         'mstar': 0.75 * M_sun,
         'lstar': 0.242 * L_sun,
@@ -200,7 +212,7 @@ if __name__ == '__main__':
         'rout': 250 * au,
         'r_c': 30 * au,
         'alpha': 1e-3,
-        'fname_opac': 'opacities/dustkappa_finer_agrain_chopped.npz',
+        'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
         'inc': 7,
         'PA': 0,
         'distance_pc': 56,
@@ -213,26 +225,17 @@ if __name__ == '__main__':
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
         'npix': 200,
         'threads': 16,
+        'sigma_funct': sigma_funct,
     }
-
-    # Gas surface density profile
-    sigma_params = {
-        'sigma_exp': 24,
-        'r_exp': 3.1 * au,
-        'p': 0.5,
-        'w': 0.45,
-    }
-    wrapped_sigma = partial(sigma_with_rim, **sigma_params)
-    model_options['sigma_funct'] = wrapped_sigma
 
     model_params_names = ['size exp', 'amax exp', 'amax coeff', 'd2g exp',
                    'd2g coeff']
     model_params = [
-        0.5,  # grain size distribution, the x in a**(4-x)
-        6.,  # max grain size radial wdistribution exponent
-        1.0,  # max grain size radial distribution coeff at options['r_c']
-        4,  # d2g exp
-        0.3,  # d2g at options['r_c']
+        0.1,  # grain size distribution, the x in a**(4-x)
+        4.,  # max grain size radial wdistribution exponent
+        0.5,  # max grain size radial distribution coeff at options['r_c']
+        7,  # d2g exp
+        1.0,  # d2g at options['r_c']
     ]
 
     model_dir = disk_model(model_params, model_options, show_plots=False)

@@ -491,4 +491,4 @@ def get_profile_from_fits(fname: Path, clip: float =2.5,
         ax.semilogy(x, y)
         ax.fill_between(x, y - dy, y + dy, alpha=0.5)
 
-    return x, y, dy
+    return x, y, dy, norm

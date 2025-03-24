@@ -1,6 +1,7 @@
 import logging
 import pickle
 import shutil
+import sys
 import warnings
 from functools import partial
 from pathlib import Path
@@ -256,7 +257,7 @@ if __name__ == '__main__':
         'mstar': 0.75 * M_sun,
         'lstar': 0.34 * L_sun,
         'tstar': 3810,
-        'nr': 400,
+        'nr': 250,
         'rin': 0.32 * au,
         'rout': 250 * au,
         'r_c': 30 * au,
@@ -288,20 +289,44 @@ if __name__ == '__main__':
 
     # model_0.5_5.0_1.0_5.0_0.1
     p_0 = np.linspace(0.3, 0.7, 5)
-    p_1 = np.linspace(3, 5, 5)
-    p_2 = np.logspace(0.8, 0.2, 5)
-    p_3 = np.linspace(4, 6, 5)
-    p_4 = np.logspace(0.2, 0.05, 5)
+    p_1 = np.linspace(4, 6, 4)
+    p_2 = np.linspace(0.8, 1.2, 4)
+    p_3 = np.linspace(4, 6, 4)
+    p_4 = np.logspace(-1.3, -0.7, 4)
 
     P_0, P_1, P_2, P_3, P_4 = np.asarray(np.meshgrid(p_0, p_1, p_2, p_3, p_4))
 
-    grid = np.column_stack([P_0.ravel(), P_1.ravel(), P_2.ravel(), P_3.ravel(),
-                            P_4.ravel()])
+    # grid = np.column_stack([P_0.ravel(), P_1.ravel(), P_2.ravel(), P_3.ravel(),
+    #                         P_4.ravel()])
+    # norm good model SPHERE 1e-7
 
-    # grid = [[0.33333333, 5.55555556, 1.6       , 4.72222222, 0.1       ]]
-    for i, _params in enumerate(grid):
-        model_dir = disk_model(_params, model_options)
-        shutil.rmtree(model_dir / 'radmc_run')
-        with open(model_dir / 'model_info.txt', "w") as file:
-            file.write(f"Model parameters:   {_params}\n")
-        # model_dir.rename(model_dir.parent / f'model_{i}')
+    default_params = np.array([0.1, 4.0, 0.5, 7, 1.0])
+    # test_model_0.1_4.0_0.5_5.53_1.0
+
+    param_index = int(3)
+    param_sample_size = 7
+    edges = (7, 12)
+    param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
+    param_sample = np.around(param_sample, 2)
+
+    params_list = np.array([default_params for _ in range(param_sample_size)])
+    for i in range(param_sample_size):
+        params_list[i][param_index] = param_sample[i]
+
+    params_list = [default_params]
+
+    for i, _params in enumerate(params_list):
+        try:
+            model_dir = disk_model(_params, model_options)
+            # shutil.rmtree(model_dir / 'radmc_run')
+            with open(model_dir / 'model_info.txt', "w") as file:
+                file.write(f"Model parameters:   {_params}\n")
+
+            target_dir = model_dir.parent
+            # target_dir = model_dir.parent / f'test_p{param_index}'
+            # target_dir.mkdir(parents=True, exist_ok=True)
+            model_dir.rename(target_dir / ('test_' + model_dir.name))
+
+        except OSError as e:
+            print(e)
+            continue

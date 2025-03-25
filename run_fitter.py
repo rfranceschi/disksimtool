@@ -47,7 +47,7 @@ with h5py.File(fpath, 'r') as f:
             profiles_dict[_key][_profile_key] = f[_key][_profile_key][:]
 
 @traced
-def likelihood(params: list, **kwargs):
+def likelihood(params: list, **kwargs) -> float:
     model_dir = disk_model(params, model_options, show_plots=False)
     lh = images_likelihood(model_dir, **kwargs)
     # shutil.rmtree(model_dir)
@@ -67,9 +67,9 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
     Parameters
     ----------
     model_path: Path
-        Path to the folder containing the fits files.
+        Folder containing the fits files.
     normalized_profiles: list, optional
-        The name of the fits files whose profiles we need normalized.
+        Name of the fits files whose profiles we need normalized.
     r_norm_as: float, optional
         The radius, in arcsec, at which the profiles are normalized.
     r_min: float, optional
@@ -84,41 +84,41 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
 
     chi2 = 0
     for output_fits in model_path.glob('*.fits'):
+
+
         obs_profile = profiles_dict[output_fits.stem].copy()
 
-        y_obs = obs_profile['y']
-        dy_obs = obs_profile['dy']
+        x_obs = np.copy(obs_profile['x'])
+        y_obs = np.copy(obs_profile['y'])
+        dy_obs = np.copy(obs_profile['dy'])
 
-        rn_as = None
+        r_norm = None
         if output_fits.stem in normalized_profiles:
-            rn_as = r_norm_as
-            rn_au = ((r_norm_as * u.arcsec).to_value(u.rad) * model_options[
-                'distance_pc'] * u.pc).to_value(u.au)
-
-            norm = np.interp(rn_au, obs_profile['x'], obs_profile['y'])
+            r_norm = r_norm_as
+            norm = np.interp(r_norm_as, obs_profile['x'], obs_profile['y'])
             y_obs /= norm
             dy_obs /= norm
 
-        r_vals = obs_profile['x'] / (model_options['distance_pc'] *
-                  u.pc).to_value(u.au)
-        r_vals = (r_vals * u.rad).to_value(u.arcsec)
+        i_inner = np.nonzero(np.asarray(x_obs > r_min))
+        x_obs = x_obs[i_inner]
+        y_obs = y_obs[i_inner]
+        dy_obs = dy_obs[i_inner]
 
-        i_outer = np.nonzero(np.asarray(r_vals > r_min))
-        r_vals = r_vals[i_outer]
-        x_obs = obs_profile['x'][i_outer]
+        r_max = 1.5
+        i_outer = np.nonzero(np.asarray(x_obs < r_max))
+        x_obs = x_obs[i_outer]
         y_obs = y_obs[i_outer]
         dy_obs = dy_obs[i_outer]
 
-        x_model, y_model, dy_model = model_utils.get_profile_from_fits(
+        x_model, y_model, dy_model, norm = model_utils.get_profile_from_fits(
             output_fits,
-            clip=6,
             inc=model_options['inc'],
             PA=model_options['PA'],
             dist=model_options['distance_pc'],
-            beam=None,
-            r_norm=rn_as,
+            beam=obs_profile['beam'],
+            r_norm=r_norm,
             r_min=r_min,
-            rvals=r_vals,
+            rvals=x_obs,
         )
 
         chi2 += hf.calculate_chisquared(y_model,
@@ -126,11 +126,13 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
                                         dy_obs,
                                         )
         f, ax = plt.subplots()
-        ax.semilogy((x_model * u.arcsec).to_value(u.rad)*(model_options[
-            'distance_pc'] * u.pc).to_value(u.au),
+        ax.semilogy(x_model,
                     y_model, '-',
                     color='k')
-        ax.semilogy(x_obs, y_obs, '-', color='r')
+        ax.semilogy(x_obs,
+                    y_obs,
+                    '-',
+                    color='r')
         plt.suptitle(output_fits.stem)
         plt.show()
         # r_in_as = 0.5
@@ -219,9 +221,9 @@ if __name__ == '__main__':
         # The output fits files will be at these wavelengths (micron)
         # lam_obs_list wavelengths
         # 'lam_obs_list': [0.000165, 0.0015, 0.087],
-        'lam_obs_list': [0.0015],
+        'lam_obs_list': [0.000165, 0.087],
         # Set scattering (True) or continuum (False) radiative transfer for
-        'scattering': [False],
+        'scattering': [True, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
         'npix': 200,
         'threads': 16,
@@ -238,10 +240,22 @@ if __name__ == '__main__':
         1.0,  # d2g at options['r_c']
     ]
 
-    model_dir = disk_model(model_params, model_options, show_plots=False)
-    shutil.rmtree(model_dir / 'radmc_run')
-    os.remove(model_dir / 'model.pkl')
-    print(model_dir)
+    normalized_profiles = ['1.6_mu']
+    wrapped_likelihood = partial(likelihood,
+                                 normalized_profiles=normalized_profiles,
+                                 r_norm_as=0.6,
+                                 r_min=0.4)
+    likelihood = wrapped_likelihood(model_params)
+    # model_dir = disk_model(model_params, model_options, show_plots=False)
+    # for _params in model_params:
+    #     with open(model_dir / 'model_info.txt', "w") as file:
+    #         ˜file.write(f"Model parameters:   {_params}\n")
+    #
+    # shutil.rmtree(model_dir / 'radmc_run')
+    # os.remove(model_dir / 'model.pkl')
+    # print(model_dir)
+
+    print(likelihood)
 
     #  The 870 profile is normalized since there is likely an issue
     #  the units when extracting the profiles.

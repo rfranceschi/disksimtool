@@ -117,8 +117,8 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
         # Define the wavelength, size, and angle grids then calculate
         # opacities_IMLup and store them in a local file,
         # if it doesn't exist yet. Careful, that takes of the order of >2h.
-        n_lam = 200  # number of wavelength points
-        n_a = 100  # number of particle sizes
+        n_lam = 100  # number of wavelength points
+        n_a = 50  # number of particle sizes
         n_theta = 181  # number of angles in the scattering phase function
         porosity = 0.3
 

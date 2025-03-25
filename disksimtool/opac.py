@@ -141,7 +141,6 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
 def make_opacs(a, lam, fname='dustkappa', porosity=None, constants=None, n_theta=101, optool=True,
                composition='dsharp'):
     """make optical constants file"""
-
     if n_theta // 2 == n_theta / 2:
         n_theta += 1
         print(f'n_theta needs to be odd, will set it to {n_theta}')
@@ -223,7 +222,9 @@ def make_opacs(a, lam, fname='dustkappa', porosity=None, constants=None, n_theta
         if optool:
             if optool_available:
                 print('using optool: ')
-                opac_dict = optool_wrapper(a, lam, n_angle=n_theta - 1, composition=composition)
+                opac_dict = optool_wrapper(a, lam, n_angle=n_theta - 1,
+                                           composition=composition,
+                                           porosity=porosity)
             else:
                 raise FileNotFoundError('optool unavailable, cannot calculate opacities!')
         else:

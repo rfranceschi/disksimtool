@@ -128,6 +128,7 @@ def optool_wrapper(a, lam, chop=5, porosity=0.3, n_angle=180, composition='dshar
         'g': g,
         'output': output,
         'rho_s': rho_s,
+        'porosity': porosity,
     }
 
     if scatter:

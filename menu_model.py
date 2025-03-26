@@ -149,7 +149,7 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
 
     models_root = Path('./runs/')
 
-    model_name = 'model_' + '_'.join([f'{_par}' for _par in parameters])
+    model_name = 'model_' + '_'.join([f'{_par:.2e}' for _par in parameters])
     model_path = models_root / model_name / 'model.pkl'
 
     if model_path.is_file():
@@ -300,7 +300,7 @@ if __name__ == '__main__':
     #                         P_4.ravel()])
     # norm good model SPHERE 1e-7
 
-    default_params = np.array([0.1, 4.0, 0.5, 7, 1.0])
+    default_params = np.array([0.31, 6.11, 0.69, 7.22, 0.1])
     # test_model_0.1_4.0_0.5_5.53_1.0
 
     param_index = int(3)

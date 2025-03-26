@@ -50,8 +50,8 @@ with h5py.File(fpath, 'r') as f:
 def likelihood(params: list, **kwargs) -> float:
     model_dir = disk_model(params, model_options, show_plots=False)
     lh = images_likelihood(model_dir, **kwargs)
-    # shutil.rmtree(model_dir)
-    logging.info(lh)
+    shutil.rmtree(model_dir)
+    logging.info(f"Likelyhood: {lh}")
     if lh is None:
         logging.warning('No likelihood was calculated, check if the number of'
                         'pixels is not too small to extract a radial profile.')
@@ -83,9 +83,8 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
         raise ValueError('Provide both or neither r_norm_as and normalized_profiles.')
 
     chi2 = 0
-    for output_fits in model_path.glob('*.fits'):
-
-
+    f, ax = plt.subplots(2, 1)
+    for i, output_fits in enumerate(model_path.glob('*.fits')):
         obs_profile = profiles_dict[output_fits.stem].copy()
 
         x_obs = np.copy(obs_profile['x'])
@@ -121,26 +120,33 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
             rvals=x_obs,
         )
 
-        chi2 += hf.calculate_chisquared(y_model,
+        partial_chi2 = hf.calculate_chisquared(y_model,
                                         y_obs,
                                         dy_obs,
                                         )
-        f, ax = plt.subplots()
-        ax.semilogy(x_model,
+        chi2 += partial_chi2
+
+        ax[i].semilogy(x_model,
                     y_model, '-',
-                    color='k')
-        ax.semilogy(x_obs,
+                    color='k',
+                    label=f"{partial_chi2:.2e}")
+        ax[i].semilogy(x_obs,
                     y_obs,
                     '-',
                     color='r')
-        plt.suptitle(output_fits.stem)
-        plt.show()
+        ax[i].set_title(output_fits.stem)
+        ax[i].legend(fontsize='small')
         # r_in_as = 0.5
         # condition = np.nonzero(np.asarray(x_model > r_in_as))
-        # chi2 += hf.calculate_chisquared(y_model[condition],
+        # chi2 += hf.calculate_chisquared(y
+
+        # _model[condition],
         #                                 obs_profile['y'][condition],
         #                                 obs_profile['dy'][condition],
         #                                 )
+    f.text(0.3, 0.6, f'{chi2:.2e}', size='small')
+    f.text(0.3, 0.95, model_path.stem, size='small')
+    plt.show()
     return chi2
 
 @traced
@@ -157,34 +163,34 @@ def prior_transform(params: list) -> np.array:
     """
     params_transformed = np.copy(params)
 
-    # grain size distribution exp
+    # grain size distribution exp, as in a**(4-exp)
     lo = 0
     hi = 1
     # uniform prior
     params_transformed[0] = params[0] * (hi - lo) + lo
 
-    # grain size distribution, a**(4-x)
-    lo = 0
-    hi = 20
+    # grain size distribution exp, as in a0 * (r / r0)**exp
+    lo = 2.5
+    hi = 7.5
     # uniform prior
     params_transformed[1] = params[1] * (hi - lo) + lo
 
-    # grain size distribution, a**(4-x)
-    lo = 0.001
-    hi = 0.1
+    # grain size distribution a0, as in a0 * (r / r0)**exp
+    lo = 0.01
+    hi = 1
     # log prior
     params_transformed[2] = 10 ** (
                 params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
 
     # d2g exp
     lo = 0
-    hi = 20
+    hi = 10
     # uniform prior
     params_transformed[3] = params[1] * (hi - lo) + lo
 
     # d2g at 70 au
-    lo = 0.001
-    hi = 0.1
+    lo = 0.01
+    hi = 1
     # log prior
     params_transformed[4] = 10 ** (
                 params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
@@ -230,14 +236,12 @@ if __name__ == '__main__':
         'sigma_funct': sigma_funct,
     }
 
-    model_params_names = ['size exp', 'amax exp', 'amax coeff', 'd2g exp',
-                   'd2g coeff']
-    model_params = [
-        0.1,  # grain size distribution, the x in a**(4-x)
-        4.,  # max grain size radial wdistribution exponent
-        0.5,  # max grain size radial distribution coeff at options['r_c']
-        7,  # d2g exp
-        1.0,  # d2g at options['r_c']
+    model_params_names = [
+        'size exp',
+        'amax exp',
+        'amax coeff',
+        'd2g exp',
+        'd2g coeff',
     ]
 
     normalized_profiles = ['1.6_mu']
@@ -245,20 +249,8 @@ if __name__ == '__main__':
                                  normalized_profiles=normalized_profiles,
                                  r_norm_as=0.6,
                                  r_min=0.4)
-    likelihood = wrapped_likelihood(model_params)
-    # model_dir = disk_model(model_params, model_options, show_plots=False)
-    # for _params in model_params:
-    #     with open(model_dir / 'model_info.txt', "w") as file:
-    #         ˜file.write(f"Model parameters:   {_params}\n")
-    #
-    # shutil.rmtree(model_dir / 'radmc_run')
-    # os.remove(model_dir / 'model.pkl')
-    # print(model_dir)
+    # likelihood = wrapped_likelihood(model_params)
 
-    print(likelihood)
-
-    #  The 870 profile is normalized since there is likely an issue
-    #  the units when extracting the profiles.
     # normalized_profiles = ['1.6_mu', '15.0_mu']
     # wrapped_likelihood = partial(likelihood,
     #                              # normalized_profiles=normalized_profiles,
@@ -267,7 +259,11 @@ if __name__ == '__main__':
     #
     # print(wrapped_likelihood(model_params))
 
-    # sampler = ultranest.ReactiveNestedSampler(param_names, wrapped_likelihood,
-    #                                           prior_transform,
-    #                                           log_dir="myanalysis")
-    # results = sampler.run()
+    sampler = ultranest.ReactiveNestedSampler(model_params_names,
+                                              wrapped_likelihood,
+                                              prior_transform,
+                                              log_dir="myanalysis",
+                                              # vectorized=True,
+                                              resume=True,
+                                              )
+    results = sampler.run(Lepsilon=0.01, max_ncalls=100)

@@ -32,6 +32,6 @@ def calculate_chisquared(sim_data: np.array, obs_data: np.array,
     error = error + 1e-100
     obs_data = np.nan_to_num(obs_data, nan=0.0)
     sim_data = np.nan_to_num(sim_data, nan=0.0)
-    chi2 = np.sum((obs_data - sim_data) ** 2 / (error ** 2))
-    chi2 /= len(sim_data)
+    chi2 = np.sum((obs_data - sim_data) ** 2 / (error ** 2), axis=1)
+    chi2 *= 0.5 / len(sim_data)
     return chi2

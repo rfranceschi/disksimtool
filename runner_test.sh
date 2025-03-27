@@ -12,15 +12,17 @@ source /obs/rfranceschi/miniconda3/etc/profile.d/conda.sh
 conda activate astromodels
 
 SCRATCH=/scratch/$USER/run.${SLURM_JOBID}
+ROOT=/obs/$USER/mysims/disksimtool
+DATA=/data/$USER/TWHya
 srun --ntasks=$SLURM_JOB_NUM_NODES mkdir -p $SCRATCH
 cd $SCRATCH
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /obs/$USER/run_fitter.py .
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /obs/$USER/menu_model.py .
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /data/$USER/profiles .
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /data/$USER/opacities .
+srun --ntasks=$SLURM_JOB_NUM_NODES cp ${ROOT}/run_fitter.py .
+srun --ntasks=$SLURM_JOB_NUM_NODES cp ${ROOT}/menu_model.py .
+srun --ntasks=$SLURM_JOB_NUM_NODES cp ${DATA}/profiles .
+srun --ntasks=$SLURM_JOB_NUM_NODES cp ${DATA}/opacities .
 
-mpiexec ./run_fitter.py > run_fitter.out
-srun --ntasks=$SLURM_JOB_NUM_NODES mv myanalysis /data/$USER/
+mpiexec python ./run_fitter.py > run_fitter.out
+srun --ntasks=$SLURM_JOB_NUM_NODES mv myanalysis ${DATA}
 
 cd ${SLURM_SUBMIT_DIR}
 mv ${SCRATCH}/run_fitter.out .

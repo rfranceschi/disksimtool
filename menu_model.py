@@ -24,12 +24,6 @@ au = c.au.cgs.value
 M_sun = c.M_sun.cgs.value
 L_sun = c.L_sun.cgs.value
 
-
-# distance = 56 * u.pc
-# incl = 0
-# PA = 0
-
-
 def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float,
                    w: float) -> float:
     """

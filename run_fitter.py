@@ -21,6 +21,8 @@ from menu_model import disk_model, sigma_with_rim
 from disksimtool import helper_functions as hf
 from disksimtool import model_utils
 
+USER = os.environ['USER']
+
 logging.basicConfig(
     level=logging.WARNING,
     stream=sys.stdout,
@@ -35,7 +37,6 @@ distance = 56 * u.pc
 incl = 7
 PA = 0
 
-obs_path = Path('./observations/')
 profiles_path = Path('./profiles/')
 
 profiles_dict = {}
@@ -59,7 +60,8 @@ def likelihood(params: list, **kwargs) -> float:
 
 @traced
 def images_likelihood(model_path: Path, normalized_profiles: list = None,
-                      r_norm_as: float = None, r_min: float = None) -> float:
+                      r_norm_as: float = None, r_min: float = None,
+                      plot: bool = False) -> float:
     """
     Calculate the total chi-squared (chi2) value for a model's generated images
     against observed profiles.
@@ -83,7 +85,9 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
         raise ValueError('Provide both or neither r_norm_as and normalized_profiles.')
 
     chi2 = 0
-    f, ax = plt.subplots(2, 1)
+    if plot:
+        plt.close('all')
+        f, ax = plt.subplots(2, 1)
     for i, output_fits in enumerate(model_path.glob('*.fits')):
         obs_profile = profiles_dict[output_fits.stem].copy()
 
@@ -126,27 +130,29 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
                                         )
         chi2 += partial_chi2
 
-        ax[i].semilogy(x_model,
-                    y_model, '-',
-                    color='k',
-                    label=f"{partial_chi2:.2e}")
-        ax[i].semilogy(x_obs,
-                    y_obs,
-                    '-',
-                    color='r')
-        ax[i].set_title(output_fits.stem)
-        ax[i].legend(fontsize='small')
+        if plot:
+            ax[i].semilogy(x_model,
+                        y_model, '-',
+                        color='k',
+                        label=f"{partial_chi2:.2e}")
+            ax[i].semilogy(x_obs,
+                        y_obs,
+                        '-',
+                        color='r')
+            ax[i].set_title(output_fits.stem)
+            ax[i].legend(fontsize='small')
         # r_in_as = 0.5
         # condition = np.nonzero(np.asarray(x_model > r_in_as))
-        # chi2 += hf.calculate_chisquared(y
-
-        # _model[condition],
+        # chi2 += hf.calculate_chisquared(y_model[condition],
         #                                 obs_profile['y'][condition],
         #                                 obs_profile['dy'][condition],
         #                                 )
-    f.text(0.3, 0.6, f'{chi2:.2e}', size='small')
-    f.text(0.3, 0.95, model_path.stem, size='small')
-    plt.show()
+    if plot:
+        title = model_path.stem
+        title = title.removeprefix("model_")
+        f.text(0.3, 0.6, f'{chi2:.2e}', size='small')
+        f.text(0.3, 0.95, title, size='small')
+        plt.show()
     return chi2
 
 @traced
@@ -232,7 +238,7 @@ if __name__ == '__main__':
         'scattering': [True, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
         'npix': 200,
-        'threads': 16,
+        'threads': 1,
         'sigma_funct': sigma_funct,
     }
 

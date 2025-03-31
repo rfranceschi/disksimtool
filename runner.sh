@@ -5,25 +5,29 @@
 #SBATCH --time=7200
 #SBATCH --mail-user=riccardo.franceschi@obspm.fr
 #SBATCH --mail-type=BEGIN,END
-#SBATCH --mem=10gb
-#SBATCH --tmp=10gb
+#SBATCH --mem=40gb
+#SBATCH --tmp=40gb
 
 source /obs/rfranceschi/miniconda3/etc/profile.d/conda.sh
 conda activate astromodels
 
 SCRATCH=/scratch/$USER/run.${SLURM_JOBID}
-srun --ntasks=$SLURM_JOB_NUM_NODES mkdir -p $SCRATCH
-cd $SCRATCH
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /obs/$USER/run_fitter.py .
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /obs/$USER/menu_model.py .
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /data/$USER/profiles .
-srun --ntasks=$SLURM_JOB_NUM_NODES cp /data/$USER/opacities .
+DATA=/data/$USER/TWHya
 
-mpiexec ./run_fitter.py > run_fitter.out
-srun --ntasks=$SLURM_JOB_NUM_NODES mv myanalysis /data/$USER/
+mkdir -p $SCRATCH
+cd $SCRATCH
+
+cp ${SLURM_SUBMIT_DIR}/run_fitter.py .
+cp ${SLURM_SUBMIT_DIR}/menu_model.py .
+cp ${DATA}/opacities .
+cp ${DATA}/profiles .
+
+mpiexec -np 64 python3 ./run_fitter.py > run_fitter.out
+mv corner.png /data/$USER/
+mv myanalysis /data/$USER/
 
 cd ${SLURM_SUBMIT_DIR}
 mv ${SCRATCH}/run_fitter.out .
-srun --ntasks=$SLURM_JOB_NUM_NODES rm -rf ${SCRATCH}
+rm -rf ${SCRATCH}
 
 exit 0

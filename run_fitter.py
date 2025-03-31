@@ -272,7 +272,10 @@ if __name__ == '__main__':
                                               # vectorized=True,
                                               resume=True,
                                               )
-    results = sampler.run(Lepsilon=0.01, max_ncalls=100)
+    results = sampler.run(Lepsilon=1.0,
+                          min_num_live_points=400,
+                          dlogz=0.5
+                          )
 
     try:
         sampler.print_results()

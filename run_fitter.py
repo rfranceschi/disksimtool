@@ -148,7 +148,7 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
         #                                 obs_profile['dy'][condition],
         #                                 )
     if plot:
-        title = model_path.stem
+        title = model_path.name
         title = title.removeprefix("model_")
         f.text(0.3, 0.6, f'{chi2:.2e}', size='small')
         f.text(0.3, 0.95, title, size='small')

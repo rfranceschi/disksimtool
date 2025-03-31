@@ -21,7 +21,6 @@ from menu_model import disk_model, sigma_with_rim
 from disksimtool import helper_functions as hf
 from disksimtool import model_utils
 
-USER = os.environ['USER']
 
 logging.basicConfig(
     level=logging.WARNING,
@@ -254,7 +253,8 @@ if __name__ == '__main__':
     wrapped_likelihood = partial(likelihood,
                                  normalized_profiles=normalized_profiles,
                                  r_norm_as=0.6,
-                                 r_min=0.4)
+                                 r_min=0.4,
+                                 plot=False)
     # likelihood = wrapped_likelihood(model_params)
 
     # normalized_profiles = ['1.6_mu', '15.0_mu']
@@ -273,3 +273,10 @@ if __name__ == '__main__':
                                               resume=True,
                                               )
     results = sampler.run(Lepsilon=0.01, max_ncalls=100)
+
+    try:
+        sampler.print_results()
+        ultranest.plot.cornerplot(results)
+        plt.savefig('corner.png')
+    except:
+        warnings.warn('Something went wrong.')

@@ -142,7 +142,6 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
     logging.info(f'Total disk mass: {disk_gas_mass:.2} M_sun')
 
     models_root = Path('./runs/')
-
     model_name = 'model_' + '_'.join([f'{_par:.2e}' for _par in parameters])
     model_path = models_root / model_name / 'model.pkl'
 
@@ -271,6 +270,7 @@ if __name__ == '__main__':
         'npix': 200,
         'threads': 16,
         'sigma_funct': sigma_funct,
+        'opac': 0.3,
     }
 
     # model_parameters = [
@@ -294,20 +294,23 @@ if __name__ == '__main__':
     #                         P_4.ravel()])
     # norm good model SPHERE 1e-7
 
-    default_params = np.array([0.31, 6.11, 0.69, 7.22, 0.1])
+    default_params = np.array([0.13, 4.65, 0.34, 4.3, 0.06])
     # test_model_0.1_4.0_0.5_5.53_1.0
 
-    param_index = int(3)
+    param_index = int(0)
     param_sample_size = 7
-    edges = (7, 12)
-    param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
-    param_sample = np.around(param_sample, 2)
+    edges = (0.001, 0.01)
+    # param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
+    param_sample = [0.001, 0.0025, 0.005, 0.0075, 0.01]
 
     params_list = np.array([default_params for _ in range(param_sample_size)])
     for i in range(param_sample_size):
         params_list[i][param_index] = param_sample[i]
 
-    params_list = [default_params]
+    # params_list = [
+    #                default_params,
+    #                ]
+
 
     for i, _params in enumerate(params_list):
         try:

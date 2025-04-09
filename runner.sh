@@ -24,7 +24,7 @@ srun --ntasks=$SLURM_JOB_NUM_NODES cp ${SLURM_SUBMIT_DIR}/menu_model.py .
 srun --ntasks=$SLURM_JOB_NUM_NODES cp -r ${DATA}/opacities .
 srun --ntasks=$SLURM_JOB_NUM_NODES cp -r ${DATA}/profiles .
 
-mpiexec -n 16 python3 ${SCRATCH}/run_fitter.py > run_fitter.out
+mpiexec -n 64 python3 ${SCRATCH}/run_fitter.py > run_fitter.out
 srun --ntasks=$SLURM_JOB_NUM_NODES mv corner.png /data/$USER/"corner_$RANDOM.out"
 srun --ntasks=$SLURM_JOB_NUM_NODES mv myanalysis /data/$USER/"myanalysis_$RANDOM"
 

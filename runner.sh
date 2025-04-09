@@ -20,18 +20,18 @@ function do_cleanup() {
     debug_log "Starting cleanup process..."
 
     if [[ -f corner.png ]]; then
-        srun --ntasks=$SLURM_JOB_NUM_NODES mv corner.png /data/$USER/"corner_$RANDOM.out"
+        srun --ntasks=$SLURM_JOB_NUM_NODES mv corner.png ${SLURM_SUBMIT_DIR}/"corner_$RANDOM.out"
         debug_log "Moved corner.png to /data"
     fi
 
     if [[ -d myanalysis ]]; then
-        srun --ntasks=$SLURM_JOB_NUM_NODES mv myanalysis /data/$USER/"myanalysis_$RANDOM"
+        srun --ntasks=$SLURM_JOB_NUM_NODES mv myanalysis ${SLURM_SUBMIT_DIR}/"myanalysis_$RANDOM"
         debug_log "Moved myanalysis directory to /data"
     fi
 
     cd ${SLURM_SUBMIT_DIR}
     if [[ -f ${SCRATCH}/run_fitter.out ]]; then
-        srun --ntasks=$SLURM_JOB_NUM_NODES cp ${SCRATCH}/run_fitter.out "run_fitter_$RANDOM.out"
+        srun --ntasks=$SLURM_JOB_NUM_NODES cp ${SCRATCH}/run_fitter.out ${SLURM_SUBMIT_DIR}/"run_fitter_$RANDOM.out"
         debug_log "Copied run_fitter.out to submission directory"
     fi
 

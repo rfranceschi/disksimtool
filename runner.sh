@@ -3,8 +3,6 @@
 #SBATCH --nodes=4 --ntasks-per-node=16
 #SBATCH --partition=long
 #SBATCH --time=7200
-#SBATCH --mail-user=riccardo.franceschi@obspm.fr
-#SBATCH --mail-type=BEGIN,END
 #SBATCH --mem=40gb
 #SBATCH --tmp=40gb
 #SBATCH --signal=B:SIGTERM@1800

@@ -7,7 +7,7 @@
 #SBATCH --mail-type=BEGIN,END
 #SBATCH --mem=40gb
 #SBATCH --tmp=40gb
-#SBATCH --signal=B:SIGINT@900
+#SBATCH --signal=B:SIGTERM@1800
 
 SCRATCH=/scratch/$USER/run.${SLURM_JOBID}
 DATA=/data/$USER/TWHya
@@ -19,33 +19,46 @@ function debug_log() {
 function do_cleanup() {
     debug_log "Starting cleanup process..."
 
+    NODE_NAME=$(hostname)  # This gets the node name the job is running on
+    JOBID=${SLURM_JOB_ID}
+
+    # Move corner.png and update symlink
     if [[ -f corner.png ]]; then
-        srun --ntasks=$SLURM_JOB_NUM_NODES mv corner.png ${SLURM_SUBMIT_DIR}/"corner_$RANDOM.out"
-        debug_log "Moved corner.png to /data"
+        OUTPUT_NAME="corner_${JOBID}_${NODE_NAME}.out"
+        mv corner.png ${SLURM_SUBMIT_DIR}/$OUTPUT_NAME
+        ln -sf $OUTPUT_NAME ${SLURM_SUBMIT_DIR}/latest_corner.out
+        debug_log "Moved corner.png and updated symlink from $(hostname)"
     fi
 
+    # Move myanalysis directory and update symlink
     if [[ -d myanalysis ]]; then
-        srun --ntasks=$SLURM_JOB_NUM_NODES mv myanalysis ${SLURM_SUBMIT_DIR}/"myanalysis_$RANDOM"
-        debug_log "Moved myanalysis directory to /data"
+        DIR_NAME="myanalysis_${JOBID}_${NODE_NAME}"
+        mv myanalysis ${SLURM_SUBMIT_DIR}/$DIR_NAME
+        ln -sf $DIR_NAME ${SLURM_SUBMIT_DIR}/latest_myanalysis
+        debug_log "Moved myanalysis and updated symlink from $(hostname)"
     fi
 
+    # Move run_fitter.out and update symlink
     cd ${SLURM_SUBMIT_DIR}
     if [[ -f ${SCRATCH}/run_fitter.out ]]; then
-        srun --ntasks=$SLURM_JOB_NUM_NODES cp ${SCRATCH}/run_fitter.out ${SLURM_SUBMIT_DIR}/"run_fitter_$RANDOM.out"
-        debug_log "Copied run_fitter.out to submission directory"
+        FILE_NAME="run_fitter_${JOBID}_${NODE_NAME}.out"
+        cp ${SCRATCH}/run_fitter.out ${SLURM_SUBMIT_DIR}/$FILE_NAME
+        ln -sf $FILE_NAME ${SLURM_SUBMIT_DIR}/latest_run_fitter.out
+        debug_log "Copied run_fitter.out and updated symlink from $(hostname)"
     fi
 
-    srun --ntasks=$SLURM_JOB_NUM_NODES rm -rf ${SCRATCH}
-    debug_log "Deleted scratch directory"
+    # Remove the scratch directory
+    rm -rf ${SCRATCH}
+    debug_log "Deleted scratch directory in $(hostname)"
 }
 
-function sig_handler_SIGINT() {
-    debug_log "SIGINT received — calling cleanup"
+function sig_handler_SIGTERM() {
+    debug_log "SIGTERM received — calling cleanup"
     do_cleanup
     exit 2
 }
 
-trap 'sig_handler_SIGINT' SIGINT
+trap 'sig_handler_SIGTERM' SIGTERM
 
 export OMP_NUM_THREADS=1
 

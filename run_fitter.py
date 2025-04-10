@@ -265,6 +265,13 @@ if __name__ == '__main__':
     #
     # print(wrapped_likelihood(model_params))
 
+    if "OMPI_COMM_WORLD_SIZE" in os.environ or "PMI_SIZE" in os.environ or "MPI_LOCALNRANKID" in os.environ:
+        # Likely running under MPI
+        from mpi4py import MPI
+
+        rank = MPI.COMM_WORLD.Get_rank()
+        print(f"MPI rank {rank} started")
+
     sampler = ultranest.ReactiveNestedSampler(model_params_names,
                                               wrapped_likelihood,
                                               prior_transform,

@@ -3,8 +3,8 @@
 #SBATCH --nodes=4 --ntasks-per-node=16
 #SBATCH --partition=long
 #SBATCH --time=7200
-#SBATCH --mem=40gb
-#SBATCH --tmp=40gb
+#SBATCH --mem=60gb
+#SBATCH --tmp=60gb
 #SBATCH --signal=B:SIGTERM@1800
 
 SCRATCH=/scratch2/$USER/run.${SLURM_JOBID}
@@ -54,7 +54,7 @@ function do_cleanup() {
 
     # Remove the scratch directory
     rm -rf ${SCRATCH}
-    debug_log "Deleted scratch directory in $(hostname)"
+    debug_log "Deleted scratch directory"
 }
 
 function sig_handler_SIGTERM() {

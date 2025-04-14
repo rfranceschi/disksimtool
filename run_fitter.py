@@ -48,13 +48,17 @@ with h5py.File(fpath, 'r') as f:
 
 @traced
 def likelihood(params: list, **kwargs) -> float:
-    model_dir = disk_model(params, model_options, show_plots=False)
-    lh = images_likelihood(model_dir, **kwargs)
-    shutil.rmtree(model_dir)
-    logging.info(f"Likelyhood: {lh}")
-    if lh is None:
-        logging.warning('No likelihood was calculated, check if the number of'
-                        'pixels is not too small to extract a radial profile.')
+    try:
+        logging.info(f"Compute likelihood at params={params}")
+        model_dir = disk_model(params, model_options, show_plots=False)
+        lh = images_likelihood(model_dir, **kwargs)
+        if lh is None:
+            logging.warning('No likelihood was calculated at params={params}')
+            lh = -1e300
+    except Exception as e:
+        logging.warning(f"Error at params={params}: {e}")
+        lh = -1e300
+    shutil.rmtree(model_dir, ignore_errors=True)
     return lh
 
 @traced

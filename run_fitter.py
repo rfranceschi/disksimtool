@@ -284,8 +284,10 @@ if __name__ == '__main__':
                                               resume=True,
                                               )
     results = sampler.run(Lepsilon=0.5,
-                          min_num_live_points=400,
+                          min_num_live_points=1000,
                           dlogz=1.0,
+                          show_status=True,
+                          log_interval=1,
                           )
 
     try:

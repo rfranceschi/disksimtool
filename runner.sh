@@ -5,7 +5,7 @@
 #SBATCH --time=7200
 #SBATCH --mem=60gb
 #SBATCH --tmp=60gb
-#SBATCH --signal=B:SIGTERM@1800
+#SBATCH --signal=B:SIGTERM@900
 
 SCRATCH=/scratch2/$USER/run.${SLURM_JOBID}
 DATA=/data/$USER/TWHya

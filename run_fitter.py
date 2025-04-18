@@ -179,8 +179,8 @@ def prior_transform(params: list) -> np.array:
     params_transformed[0] = params[0] * (hi - lo) + lo
 
     # grain size distribution exp, as in a0 * (r / r0)**exp
-    lo = 2.5
-    hi = 7.5
+    lo = 0
+    hi = 10
     # uniform prior
     params_transformed[1] = params[1] * (hi - lo) + lo
 
@@ -226,7 +226,7 @@ if __name__ == '__main__':
         'tstar': 3810,
         'nr': 250,
         'rin': 0.32 * au,
-        'rout': 250 * au,
+        'rout': 150 * au,
         'r_c': 30 * au,
         'alpha': 1e-3,
         'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
@@ -283,8 +283,8 @@ if __name__ == '__main__':
                                               # vectorized=True,
                                               resume=True,
                                               )
-    results = sampler.run(Lepsilon=0.5,
-                          min_num_live_points=1000,
+    results = sampler.run(Lepsilon=1,
+                          min_num_live_points=400,
                           dlogz=1.0,
                           show_status=True,
                           log_interval=1,

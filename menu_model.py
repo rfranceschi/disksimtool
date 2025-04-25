@@ -129,14 +129,8 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
         opac_dict = opac.read_opacs(Path(options['fname_opac']))
 
     # DISK MODEL
-    # Profile from Menu et al. 2014 (https://arxiv.org/pdf/1402.6597).
     r = np.linspace(options['rin'], options['rout'], options['nr'])
-    # density_params = {
-    #     'sigma_exp': 24,
-    #     'r_exp': 3.1 * au,
-    #     'p': 0.5,
-    #     'w': 0.45,
-    # }
+
     profile = options['sigma_funct'](r)
     disk_gas_mass = (integrate_sigma(r, profile) / c.M_sun.cgs.value)
     logging.info(f'Total disk mass: {disk_gas_mass:.2} M_sun')
@@ -294,22 +288,21 @@ if __name__ == '__main__':
     #                         P_4.ravel()])
     # norm good model SPHERE 1e-7
 
-    default_params = np.array([0.13, 4.65, 0.34, 4.3, 0.06])
+    default_params = np.array([4.65, 0.34, 4.3, 0.06])
     # test_model_0.1_4.0_0.5_5.53_1.0
 
     param_index = int(0)
-    param_sample_size = 7
-    edges = (0.001, 0.01)
-    # param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
-    param_sample = [0.001, 0.0025, 0.005, 0.0075, 0.01]
+    param_sample_size = 5
+    edges = (0, 6)
+    param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
 
-    params_list = np.array([default_params for _ in range(param_sample_size)])
-    for i in range(param_sample_size):
-        params_list[i][param_index] = param_sample[i]
+    # params_list = np.array([default_params for _ in range(param_sample_size)])
+    # for i in range(param_sample_size):
+    #     params_list[i][param_index] = param_sample[i]
 
-    # params_list = [
-    #                default_params,
-    #                ]
+
+    params_list = [default_params,
+        ]
 
 
     for i, _params in enumerate(params_list):

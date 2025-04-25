@@ -195,14 +195,14 @@ def prior_transform(params: list) -> np.array:
     lo = 0
     hi = 10
     # uniform prior
-    params_transformed[3] = params[1] * (hi - lo) + lo
+    params_transformed[3] = params[3] * (hi - lo) + lo
 
     # d2g at 70 au
     lo = 0.01
     hi = 1
     # log prior
     params_transformed[4] = 10 ** (
-                params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
+                params[4] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
 
     return params_transformed
 

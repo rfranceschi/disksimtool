@@ -213,6 +213,7 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
             f"{options['threads']}")
         if _scat:
             radmc_call += ' stokes'
+        radmc_call += ' sloppy'
         logging.info(radmc_call)
         disklab.radmc3d.radmc3d(
             radmc_call,
@@ -288,7 +289,7 @@ if __name__ == '__main__':
     #                         P_4.ravel()])
     # norm good model SPHERE 1e-7
 
-    default_params = np.array([4.65, 0.34, 4.3, 0.06])
+    default_params = np.array([0.5, 4.65, 0.34, 4.3, 0.06])
     # test_model_0.1_4.0_0.5_5.53_1.0
 
     param_index = int(0)
@@ -301,7 +302,8 @@ if __name__ == '__main__':
     #     params_list[i][param_index] = param_sample[i]
 
 
-    params_list = [default_params,
+    params_list = [
+        default_params,
         ]
 
 

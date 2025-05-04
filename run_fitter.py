@@ -283,9 +283,9 @@ if __name__ == '__main__':
                                               # vectorized=True,
                                               resume=True,
                                               )
-    results = sampler.run(Lepsilon=0.5,
+    results = sampler.run(Lepsilon=0.05,
                           min_num_live_points=800,
-                          dlogz=0.1,
+                          dlogz=1,
                           show_status=True,
                           log_interval=1,
                           )

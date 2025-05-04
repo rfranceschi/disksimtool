@@ -17,20 +17,25 @@ def movingaverage(interval, window_size):
 
 @traced
 def calculate_chisquared(sim_data: np.array, obs_data: np.array,
-                         error: np.array):
+                         error: np.array) -> float:
     """
+        Computes normalized chi-squared log-likelihood:
+            ln L = -0.5 * sum((obs - sim)^2 / error^2) / N
 
-    Args:
-        sim_data:
-        obs_data:
-        error:
+        Args:
+            sim_data: simulated data array
+            obs_data: observed data array
+            error: observational uncertainty for each point (same shape)
 
-    Returns:
+        Returns:
+            Normalized log-likelihood
+        """
+    # Avoid zero division or NaNs
+    error = np.where(error == 0, 1e-10, error)
+    valid = np.isfinite(obs_data) & np.isfinite(sim_data) & np.isfinite(error)
 
-    """
+    # Subselect only valid (non-NaN, finite) values
+    resid2 = ((obs_data[valid] - sim_data[valid]) / error[valid]) ** 2
 
-    error = error + 1e-100
-    obs_data = np.nan_to_num(obs_data, nan=0.0)
-    sim_data = np.nan_to_num(sim_data, nan=0.0)
-    chi2 = -0.5 * np.sum((obs_data - sim_data) ** 2 / (error ** 2))
-    return chi2
+    # Return normalized log-likelihood
+    return -0.5 * np.sum(resid2) / len(resid2)

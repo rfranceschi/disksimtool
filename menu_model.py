@@ -263,7 +263,7 @@ if __name__ == '__main__':
         # 'scattering': [True, False, False],
         'scattering': [True, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
-        'npix': 200,
+        'npix': 147,
         'threads': 16,
         'sigma_funct': sigma_funct,
         'opac': 0.3,

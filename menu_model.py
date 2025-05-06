@@ -207,10 +207,12 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
             radmc_out_path.unlink()
 
         radmc_call = (
-            f"image incl {options['inc']} posang {options['PA'] - 90} npix "
-            f"{options['npix']} lambda {_lam_image * 1e4} "
-            f"sizeau {2 * options['rout'] / au} setthreads "
-            f"{options['threads']}")
+            f"image incl {options['inc']} posang {options['PA'] - 90} "
+            f"dpc {options['distance_pc']} "
+            f"npix {options['npix']} "
+            f"lambda {_lam_image * 1e4} "
+            f"sizeau {2 * options['rout'] / au} "
+            f"setthreads {options['threads']}")
         if _scat:
             radmc_call += ' stokes'
         radmc_call += ' sloppy'

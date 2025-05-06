@@ -208,7 +208,6 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
 
         radmc_call = (
             f"image incl {options['inc']} posang {options['PA'] - 90} "
-            f"dpc {options['distance_pc']} "
             f"npix {options['npix']} "
             f"lambda {_lam_image * 1e4} "
             f"sizeau {2 * options['rout'] / au} "

@@ -58,6 +58,46 @@ def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float,
 
     return surface_density
 
+def sigma_with_smooth_transition(r, sigma_exp, r_exp, p1, p2, r_transition, delta_r, w):
+    r = np.asarray(r)
+    r_dim = r / r_exp
+
+    # Smooth blend of exponent p(r)
+    s = 1 / (1 + np.exp(-(r - r_transition) / delta_r))
+    p_r = p1 + (p2 - p1) * s
+
+    # Adjust normalization to preserve continuity at r_transition
+    f = (r_transition / r_exp)
+    norm_adjust = f ** (p_r - p1)
+
+    surface_density = sigma_exp * norm_adjust * r_dim ** -p_r
+
+    # Inner rim tapering
+    rim_mask = r_dim < 1
+    surface_density[rim_mask] *= np.exp(-((1 - r_dim[rim_mask]) / w) ** 3)
+
+    return surface_density
+
+def sigma_with_smooth_transition(r, sigma_exp, r_exp, p1, p2, r_transition,
+                                 delta_r, w):
+    r = np.asarray(r)
+    r_dim = r / r_exp
+
+    # Smooth blend of exponent p(r)
+    s = 1 / (1 + np.exp(-(r - r_transition) / delta_r))
+    p_r = p1 + (p2 - p1) * s
+
+    # Adjust normalization to preserve continuity at r_transition
+    f = (r_transition / r_exp)
+    norm_adjust = f ** (p_r - p1)
+
+    surface_density = sigma_exp * norm_adjust * r_dim ** -p_r
+
+    # Inner rim tapering
+    rim_mask = r_dim < 1
+    surface_density[rim_mask] *= np.exp(-((1 - r_dim[rim_mask]) / w) ** 3)
+
+    return surface_density
 
 def integrate_sigma(r: np.array, sigma: np.array) -> float:
     """
@@ -234,81 +274,65 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
 
 
 if __name__ == '__main__':
+    model_options = {'mstar': 0.75 * M_sun, 'lstar': 0.34 * L_sun,
+                     'tstar': 3810, 'nr': 250, 'rin': 0.32 * au,
+                     'rout': 100 * au, 'r_c': 30 * au, 'alpha': 1e-3,
+                     'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
+                     'inc': 7, 'PA': 0, 'distance_pc': 56,
+                     'lam_obs_list': [0.000165, 0.087],
+                     # 'lam_obs_list': [0.000165, 0.0015, 0.087],
+                     'scattering': [True, False],
+                     # 'scattering': [True, False, False],
+                     'coord': '11h01m51.9053285064s -34d42m17.033218380s',
+                     'npix': 59, 'threads': 16, 'opac': 0.3}
+
+    # params = {
+    #     'sigma_exp': 24,
+    #     'r_exp': 3.1 * au,
+    #     'p': 0.5,
+    #     'w': 0.45,
+    # }
+    # sigma_funct = partial(sigma_with_rim, **params)
+
     params = {
         'sigma_exp': 24,
         'r_exp': 3.1 * au,
-        'p': 0.5,
+        'p1': 0.5,
+        'p2': 0.5,
+        'r_transition': 50 * au,
+        'delta_r': 5 * au,  # smoothing width
         'w': 0.45,
     }
-    sigma_funct = partial(sigma_with_rim, **params)
 
-    model_options = {
-        'mstar': 0.75 * M_sun,
-        'lstar': 0.34 * L_sun,
-        'tstar': 3810,
-        'nr': 250,
-        'rin': 0.32 * au,
-        'rout': 250 * au,
-        'r_c': 30 * au,
-        'alpha': 1e-3,
-        'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
-        'inc': 7,
-        'PA': 0,
-        'distance_pc': 56,
-        # The output fits files will be at these wavelengths (micron)
-        # lam_obs_list wavelengths
-        # 'lam_obs_list': [0.000165, 0.0015, 0.087],
-        'lam_obs_list': [0.000165, 0.087],
-        # Set scattering (True) or continuum (False) radiative transfer for
-        # 'scattering': [True, False, False],
-        'scattering': [True, False],
-        'coord': '11h01m51.9053285064s -34d42m17.033218380s',
-        'npix': 147,
-        'threads': 16,
-        'sigma_funct': sigma_funct,
-        'opac': 0.3,
-    }
+    sigma_funct = partial(sigma_with_smooth_transition, **params)
+    model_options['sigma_funct'] = sigma_funct
 
-    # model_parameters = [
-    #     0.9,  # grain size distribution, a**(4-x)
-    #     6,  # max grain size radial distribution exponent
-    #     1.0,  # max grain size at r_c
-    #     4,  # d2g exp
-    #     0.3,  # d2g at r_c
-    # ]
+    # p_0 = np.linspace(0.3, 0.7, 5)
+    # p_1 = np.linspace(4, 6, 4)
+    # p_2 = np.linspace(0.8, 1.2, 4)
+    # p_3 = np.linspace(4, 6, 4)
+    # p_4 = np.logspace(-1.3, -0.7, 4)
+    #
+    # P_0, P_1, P_2, P_3, P_4 = np.asarray(np.meshgrid(p_0, p_1, p_2, p_3, p_4))
 
-    # model_0.5_5.0_1.0_5.0_0.1
-    p_0 = np.linspace(0.3, 0.7, 5)
-    p_1 = np.linspace(4, 6, 4)
-    p_2 = np.linspace(0.8, 1.2, 4)
-    p_3 = np.linspace(4, 6, 4)
-    p_4 = np.logspace(-1.3, -0.7, 4)
-
-    P_0, P_1, P_2, P_3, P_4 = np.asarray(np.meshgrid(p_0, p_1, p_2, p_3, p_4))
-
-    # grid = np.column_stack([P_0.ravel(), P_1.ravel(), P_2.ravel(), P_3.ravel(),
-    #                         P_4.ravel()])
-    # norm good model SPHERE 1e-7
-
-    default_params = np.array([0.5, 4.65, 0.34, 4.3, 0.06])
-    # test_model_0.1_4.0_0.5_5.53_1.0
+    default_params = np.array([0.3550639294858283, 2.786764286453357, 0.17449244727854488,
+         3.409432193743408, 0.026388837407451893])
 
     param_index = int(0)
     param_sample_size = 5
     edges = (0, 6)
     param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
 
-    # params_list = np.array([default_params for _ in range(param_sample_size)])
-    # for i in range(param_sample_size):
-    #     params_list[i][param_index] = param_sample[i]
-
-
     params_list = [
+
+    ]
+
+
+    # for i, _params in enumerate(params_list):
+    for i, _params in enumerate([
+        # [0.5, 3.79, 0.17, 6.41, 0.02638],
         default_params,
-        ]
-
-
-    for i, _params in enumerate(params_list):
+    ]):
         try:
             model_dir = disk_model(_params, model_options)
             # shutil.rmtree(model_dir / 'radmc_run')
@@ -318,7 +342,7 @@ if __name__ == '__main__':
             target_dir = model_dir.parent
             # target_dir = model_dir.parent / f'test_p{param_index}'
             # target_dir.mkdir(parents=True, exist_ok=True)
-            model_dir.rename(target_dir / ('test_' + model_dir.name))
+            model_dir.rename(target_dir / ('p1_0.5_p2_0.5_' + model_dir.name))
 
         except OSError as e:
             print(e)

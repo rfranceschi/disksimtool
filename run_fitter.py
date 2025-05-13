@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import ultranest
 
-from menu_model import disk_model, sigma_with_rim
+from menu_model import disk_model, sigma_with_rim, sigma_with_smooth_transition
 from disksimtool import helper_functions as hf
 from disksimtool import model_utils
 
@@ -213,20 +213,21 @@ def run_and_clean(params):
 
 
 if __name__ == '__main__':
-    params = {
-        'sigma_exp': 24,
-        'r_exp': 3.1 * au,
-        'p': 0.5,
-        'w': 0.45,
-    }
-    sigma_funct = partial(sigma_with_rim, **params)
+    # params = {
+    #     'sigma_exp': 24,
+    #     'r_exp': 3.1 * au,
+    #     'p': 0.5,
+    #     'w': 0.45,
+    # }
+    # sigma_funct = partial(sigma_with_rim, **params)
+
     model_options = {
         'mstar': 0.75 * M_sun,
         'lstar': 0.242 * L_sun,
         'tstar': 3810,
         'nr': 250,
         'rin': 0.32 * au,
-        'rout': 150 * au,
+        'rout': 100 * au,
         'r_c': 30 * au,
         'alpha': 1e-3,
         'fname_opac': 'opacities/dustkappa_p30_chopped.npz',
@@ -240,10 +241,22 @@ if __name__ == '__main__':
         # Set scattering (True) or continuum (False) radiative transfer for
         'scattering': [True, False],
         'coord': '11h01m51.9053285064s -34d42m17.033218380s',
-        'npix': 200,
+        'npix': 59,
         'threads': 1,
-        'sigma_funct': sigma_funct,
+
     }
+
+    params = {
+        'sigma_exp': 24,
+        'r_exp': 3.1 * au,
+        'p1': 0.5,
+        'p2': 5,
+        'r_transition': 50 * au,
+        'delta_r': 5 * au,  # smoothing width
+        'w': 0.45,
+    }
+    sigma_funct = partial(sigma_with_smooth_transition, **params)
+    model_options['sigma_funct'] = sigma_funct
 
     model_params_names = [
         'size exp',
@@ -259,15 +272,6 @@ if __name__ == '__main__':
                                  r_norm_as=0.6,
                                  r_min=0.4,
                                  plot=False)
-    # likelihood = wrapped_likelihood(model_params)
-
-    # normalized_profiles = ['1.6_mu', '15.0_mu']
-    # wrapped_likelihood = partial(likelihood,
-    #                              # normalized_profiles=normalized_profiles,
-    #                              r_norm_as=0.6,
-    #                              r_min=0.1)
-    #
-    # print(wrapped_likelihood(model_params))
 
     if "OMPI_COMM_WORLD_SIZE" in os.environ or "PMI_SIZE" in os.environ or "MPI_LOCALNRANKID" in os.environ:
         # Likely running under MPI

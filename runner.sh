@@ -83,6 +83,14 @@ cp ${SLURM_SUBMIT_DIR}/run_fitter.py .
 cp ${SLURM_SUBMIT_DIR}/menu_model.py .
 cp -r ${DATA}/opacities .
 cp -r ${DATA}/profiles .
+if [ -d "${SLURM_SUBMIT_DIR}/myanalysis" ]; then
+    cp -r "${SLURM_SUBMIT_DIR}/myanalysis" .
+    echo "Copied myanalysis folder from ${SLURM_SUBMIT_DIR}."
+    echo "Resume run."
+else
+    echo "Directory ${SLURM_SUBMIT_DIR}/myanalysis does not exist."
+    echo "Start new run."
+fi
 
 debug_log "Starting background process to save files every 6 hours"
 # This will periodically save files every 6 hours (21600 seconds) in the background

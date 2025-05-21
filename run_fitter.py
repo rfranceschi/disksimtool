@@ -284,8 +284,7 @@ if __name__ == '__main__':
                                               wrapped_likelihood,
                                               prior_transform,
                                               log_dir="myanalysis",
-                                              # vectorized=True,
-                                              resume=True,
+                                              resume='subfolder',
                                               )
     results = sampler.run(Lepsilon=0.05,
                           min_num_live_points=800,

@@ -115,7 +115,8 @@ def integrate_sigma(r: np.array, sigma: np.array) -> float:
     return simpson(y=2 * np.pi * r * sigma, x=r)
 
 
-def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
+def disk_model(parameters: list, options: dict, show_plots: bool = False,
+               models_root: Path = Path('./runs/')) -> (
         Path):
     """
 
@@ -126,7 +127,8 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False) -> (
     options: list
         Fixed parameters.
     show_plots: bool
-
+    models_root: Path
+        Directory where models are stored.
     Returns
     -------
     Path to the model directory.

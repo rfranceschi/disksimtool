@@ -284,7 +284,7 @@ if __name__ == '__main__':
                                               wrapped_likelihood,
                                               prior_transform,
                                               log_dir="myanalysis",
-                                              resume='resume-similar',
+                                              resume='resume',
                                               )
     results = sampler.run(Lepsilon=0.05,
                           min_num_live_points=800,

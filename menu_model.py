@@ -177,7 +177,6 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False,
     disk_gas_mass = (integrate_sigma(r, profile) / c.M_sun.cgs.value)
     logging.info(f'Total disk mass: {disk_gas_mass:.2} M_sun')
 
-    models_root = Path('./runs/')
     model_name = 'model_' + '_'.join([f'{_par:.2e}' for _par in parameters])
     model_path = models_root / model_name / 'model.pkl'
 
@@ -326,17 +325,37 @@ if __name__ == '__main__':
     param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
 
     params_list = [
-
+        [0.9470830780128577, 6.250400805278292, 0.4495865608589366,
+         2.714376852103456, 0.012578747337948015],
+        [0.8973417633901676, 5.224821013634942, 0.2682925040778293,
+         3.1160551239317567, 0.010937911098339989],
+        [0.35437629358984446, 7.529230900288666, 0.8028574469791965,
+         1.098347051404548, 0.010833302865208646],
+        [0.7034638956083591, 5.313626061198816, 0.3341984513082757,
+         2.7751846814896943, 0.011149992504514802],
+        [0.8511748188228364, 6.8050370760185075, 0.430174779861027,
+         3.335803567498621, 0.010681682412816041],
+        [0.5852191218190014, 6.846325263173142, 0.6740089047435488,
+         2.5768083234735704, 0.011240621973327876],
+        [0.285496370974331, 7.182494704289713, 0.6597999916826546,
+         1.1529245892174511, 0.011625326773376682],
+        [0.866794742028872, 1.2137567999054988, 0.6934175276847655,
+         0.7058579661788877, 0.012024548501282782],
+        [0.6782911726426762, 6.859929532883598, 0.40350748244067036,
+         2.5027585671259533, 0.012931388469342945],
+        [0.8810030211918097, 6.921029928805781, 0.6836746864091748,
+         3.8949346918876158, 0.01771723921404255],
     ]
 
 
-    # for i, _params in enumerate(params_list):
-    for i, _params in enumerate([
-        # [0.5, 3.79, 0.17, 6.41, 0.02638],
-        default_params,
-    ]):
+    for i, _params in enumerate(
+            params_list
+            # [default_params,]
+            # [[2.85e-01, 7.18e+00, 6.60e-01, 1.15e+00, 1.16e-02],] # manual tune sigma outer slope
+    ):
         try:
-            model_dir = disk_model(_params, model_options)
+            model_dir = disk_model(_params, model_options,
+                                   models_root = Path('./runs_best_cluster'))
             # shutil.rmtree(model_dir / 'radmc_run')
             with open(model_dir / 'model_info.txt', "w") as file:
                 file.write(f"Model parameters:   {_params}\n")
@@ -344,7 +363,8 @@ if __name__ == '__main__':
             target_dir = model_dir.parent
             # target_dir = model_dir.parent / f'test_p{param_index}'
             # target_dir.mkdir(parents=True, exist_ok=True)
-            model_dir.rename(target_dir / ('p1_0.5_p2_0.5_' + model_dir.name))
+            model_dir.rename(target_dir / ('' +
+                                           model_dir.name))
 
         except OSError as e:
             print(e)

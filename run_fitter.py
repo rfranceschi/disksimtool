@@ -250,7 +250,7 @@ if __name__ == '__main__':
         'sigma_exp': 24,
         'r_exp': 3.1 * au,
         'p1': 0.5,
-        'p2': 0.5,
+        'p2': 5,
         'r_transition': 50 * au,
         'delta_r': 5 * au,  # smoothing width
         'w': 0.45,

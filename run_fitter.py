@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import ultranest
 
-from menu_model import disk_model, sigma_with_rim, sigma_with_smooth_transition
+from menu_model import disk_model
 from disksimtool import helper_functions as hf
 from disksimtool import model_utils
 
@@ -255,7 +255,7 @@ if __name__ == '__main__':
         'delta_r': 5 * au,  # smoothing width
         'w': 0.45,
     }
-    sigma_funct = partial(sigma_with_smooth_transition, **params)
+    sigma_funct = partial(model_utils.sigma_with_smooth_transition, **params)
     model_options['sigma_funct'] = sigma_funct
 
     model_params_names = [

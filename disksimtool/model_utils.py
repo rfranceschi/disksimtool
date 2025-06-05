@@ -7,6 +7,7 @@ import disklab
 import numpy as np
 from gofish import imagecube
 from matplotlib import pyplot as plt
+from scipy.integrate import simpson
 
 import disksimtool.helper_functions as hf
 
@@ -492,3 +493,87 @@ def get_profile_from_fits(fname: Path, clip: float =2.5,
         ax.fill_between(x, y - dy, y + dy, alpha=0.5)
 
     return x, y, dy, norm
+
+def lbp_profile(r: float, sigma_coeff: float, r_c: float, gamma: float) -> (
+        float):
+    return sigma_coeff * (r / r_c)**(-gamma) * np.exp(-(r / r_c)**(2 - gamma))
+
+def lbp_profile_with_rim(r: np.array, sigma_coeff: float, r_c: float,
+                         gamma: float, r_exp: float, w: float,
+                         gamma_exp: float = 3) -> (
+        float):
+    r_dim = r / r_exp
+    rim_mask = r_dim < 1
+    surface_density = sigma_coeff * (r / r_c) ** (-gamma) * np.exp(
+        -(r / r_c) ** (2 - gamma))
+    surface_density[rim_mask] *= np.exp(-((1 - r_dim[rim_mask]) / w) ** gamma_exp)
+    return surface_density
+
+def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float,
+                   w: float) -> float:
+    """
+    Computes the surface density with an inner rim, as in Eq.(4) in Menu et
+    al. 2014 (https://arxiv.org/pdf/1402.6597).
+
+    Parameters
+    ----------
+    r: float
+        Radial position.
+    sigma_exp: float
+        Normalization coefficient.
+    r_exp: float
+        Radial position where the outer disk starts.
+    p: float
+        Exponent of the outer disk profile.
+    w: float
+        Dimensionless rim width.
+
+    Returns
+    -------
+    float
+        Surface density.
+    """
+    r_dimensionless = r / r_exp
+    outer_disk_density = sigma_exp * r_dimensionless ** -p
+
+    inner_rim_mask = r_dimensionless < 1
+    surface_density = outer_disk_density * np.ones_like(r)
+    surface_density[inner_rim_mask] *= np.exp(
+        -((1 - r_dimensionless[inner_rim_mask]) / w) ** 3)
+
+    return surface_density
+
+def sigma_with_smooth_transition(r, sigma_exp, r_exp, p1, p2, r_transition, delta_r, w):
+    r = np.asarray(r)
+    r_dim = r / r_exp
+
+    # Smooth blend of exponent p(r)
+    s = 1 / (1 + np.exp(-(r - r_transition) / delta_r))
+    p_r = p1 + (p2 - p1) * s
+
+    # Adjust normalization to preserve continuity at r_transition
+    f = (r_transition / r_exp)
+    norm_adjust = f ** (p_r - p1)
+
+    surface_density = sigma_exp * norm_adjust * r_dim ** -p_r
+
+    # Inner rim tapering
+    rim_mask = r_dim < 1
+    surface_density[rim_mask] *= np.exp(-((1 - r_dim[rim_mask]) / w) ** 3)
+
+    return surface_density
+
+def integrate_sigma(r: np.array, sigma: np.array) -> float:
+    """
+    Compute the total mass by integrating a surface density profile.
+
+    Parameters
+    ----------
+    r: np.array
+    sigma: np.array
+
+    Returns
+    -------
+
+    """
+    return simpson(y=2 * np.pi * r * sigma, x=r)

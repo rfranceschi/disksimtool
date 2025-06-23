@@ -500,8 +500,24 @@ def lbp_profile(r: float, sigma_coeff: float, r_c: float, gamma: float) -> (
 
 def lbp_profile_with_rim(r: np.array, sigma_coeff: float, r_c: float,
                          gamma: float, r_exp: float, w: float,
-                         gamma_exp: float = 3) -> (
-        float):
+                         gamma_exp: float = 3) -> float:
+    """
+    Lynden-Bell Pringle profile with inner exponential taper.
+
+    Parameters
+    ----------
+    r: radial position array
+    sigma_coeff: surface density at the scaling radius
+    r_c: scaling radius
+    gamma: power law exponent
+    r_exp: inner ring radius
+    w: inner ring tapering radius
+    gamma_exp: inner ring tapering exponent
+
+    Returns
+    -------
+
+    """
     r_dim = r / r_exp
     rim_mask = r_dim < 1
     surface_density = sigma_coeff * (r / r_c) ** (-gamma) * np.exp(

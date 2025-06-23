@@ -1,7 +1,5 @@
 import logging
 import pickle
-import shutil
-import sys
 import warnings
 from functools import partial
 from pathlib import Path
@@ -11,7 +9,6 @@ import disklab.radmc3d
 import dsharp_opac as do
 import numpy as np
 from radmc3dPy import image
-from scipy.integrate import simpson
 
 import disksimtool.model_utils as model_utils
 import disksimtool.opac as opac
@@ -84,7 +81,8 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False,
     r = np.linspace(options['rin'], options['rout'], options['nr'])
 
     profile = options['sigma_funct'](r)
-    disk_gas_mass = (integrate_sigma(r, profile) / c.M_sun.cgs.value)
+    disk_gas_mass = (model_utils.integrate_sigma(r, profile) /
+                     c.M_sun.cgs.value)
     logging.info(f'Total disk mass: {disk_gas_mass:.2} M_sun')
 
     model_name = 'model_' + '_'.join([f'{_par:.2e}' for _par in parameters])
@@ -197,75 +195,28 @@ if __name__ == '__main__':
                      'coord': '11h01m51.9053285064s -34d42m17.033218380s',
                      'npix': 59, 'threads': 16, 'opac': 0.3}
 
-    # params = {
-    #     'sigma_exp': 24,
-    #     'r_exp': 3.1 * au,
-    #     'p': 0.5,
-    #     'w': 0.45,
-    # }
-    # sigma_funct = partial(sigma_with_rim, **params)
-
-    params = {
-        'sigma_exp': 24,
+    params_sigma = {
+        'sigma_coeff': 118,
+        'r_c': 45 * au,
         'r_exp': 3.1 * au,
-        'p1': 0.5,
-        'p2': 0.5,
-        'r_transition': 50 * au,
-        'delta_r': 5 * au,  # smoothing width
-        'w': 0.45,
+        'gamma': 0.5,
+        'w': 0.5,
     }
+    sigma_funct = partial(model_utils.lbp_profile_with_rim, **params_sigma)
 
-    sigma_funct = partial(sigma_with_smooth_transition, **params)
     model_options['sigma_funct'] = sigma_funct
 
-    # p_0 = np.linspace(0.3, 0.7, 5)
-    # p_1 = np.linspace(4, 6, 4)
-    # p_2 = np.linspace(0.8, 1.2, 4)
-    # p_3 = np.linspace(4, 6, 4)
-    # p_4 = np.logspace(-1.3, -0.7, 4)
-    #
-    # P_0, P_1, P_2, P_3, P_4 = np.asarray(np.meshgrid(p_0, p_1, p_2, p_3, p_4))
+    default_params = np.array([0.9470830780128577, 6.250400805278292, 0.4495865608589366, 2.714376852103456, 0.012578747337948015],
+)
 
-    default_params = np.array([0.3550639294858283, 2.786764286453357, 0.17449244727854488,
-         3.409432193743408, 0.026388837407451893])
-
-    param_index = int(0)
-    param_sample_size = 5
-    edges = (0, 6)
-    param_sample = edges[0] + np.random.rand(param_sample_size) * np.abs(edges[1] - edges[0])
-
-    params_list = [
-        [0.9470830780128577, 6.250400805278292, 0.4495865608589366,
-         2.714376852103456, 0.012578747337948015],
-        [0.8973417633901676, 5.224821013634942, 0.2682925040778293,
-         3.1160551239317567, 0.010937911098339989],
-        [0.35437629358984446, 7.529230900288666, 0.8028574469791965,
-         1.098347051404548, 0.010833302865208646],
-        [0.7034638956083591, 5.313626061198816, 0.3341984513082757,
-         2.7751846814896943, 0.011149992504514802],
-        [0.8511748188228364, 6.8050370760185075, 0.430174779861027,
-         3.335803567498621, 0.010681682412816041],
-        [0.5852191218190014, 6.846325263173142, 0.6740089047435488,
-         2.5768083234735704, 0.011240621973327876],
-        [0.285496370974331, 7.182494704289713, 0.6597999916826546,
-         1.1529245892174511, 0.011625326773376682],
-        [0.866794742028872, 1.2137567999054988, 0.6934175276847655,
-         0.7058579661788877, 0.012024548501282782],
-        [0.6782911726426762, 6.859929532883598, 0.40350748244067036,
-         2.5027585671259533, 0.012931388469342945],
-        [0.8810030211918097, 6.921029928805781, 0.6836746864091748,
-         3.8949346918876158, 0.01771723921404255],
-    ]
-
+    params_list = []
 
     for i, _params in enumerate(
-            params_list
-            # [default_params,]
-            # [[2.85e-01, 7.18e+00, 6.60e-01, 1.15e+00, 1.16e-02],] # manual tune sigma outer slope
+            [default_params,]
     ):
         try:
             model_dir = disk_model(_params, model_options,
-                                   models_root = Path('./runs_best_cluster'))
+                                   models_root = Path('./runs/'))
             # shutil.rmtree(model_dir / 'radmc_run')
             with open(model_dir / 'model_info.txt', "w") as file:
                 file.write(f"Model parameters:   {_params}\n")

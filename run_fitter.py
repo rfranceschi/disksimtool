@@ -246,16 +246,14 @@ if __name__ == '__main__':
 
     }
 
-    params = {
-        'sigma_exp': 24,
+    params_sigma = {
+        'sigma_coeff': 118,
+        'r_c': 45 * au,
         'r_exp': 3.1 * au,
-        'p1': 0.5,
-        'p2': 5,
-        'r_transition': 50 * au,
-        'delta_r': 5 * au,  # smoothing width
-        'w': 0.45,
+        'gamma': 0.5,
+        'w': 0.5,
     }
-    sigma_funct = partial(model_utils.sigma_with_smooth_transition, **params)
+    sigma_funct = partial(model_utils.lbp_profile_with_rim, **params_sigma)
     model_options['sigma_funct'] = sigma_funct
 
     model_params_names = [

@@ -173,11 +173,13 @@ def make_disklab2d_model(
     # The different indices in the parameters list correspond to different
     # physical paramters
 
-    size_exp = parameters[0]  # n(a) = a**(4-size_exp)
-    amax_exp = parameters[1]  # a_max = amax_coeff * (d.r / (56 * au)) ** (-amax_exp)
-    amax_coeff = parameters[2]
-    d2g_exp = parameters[3]
-    d2g_coeff = parameters[4]
+    size_exp_0 = parameters[0]  # n(a) = a**(4-size_exp)
+    size_exp_1 = parameters[1]  # n(a) = a**(4-size_exp)
+    amax_exp = parameters[2]  # a_max = amax_coeff * (d.r / (56 * au)) ** (
+    # -amax_exp)
+    amax_coeff = parameters[3]
+    d2g_exp = parameters[4]
+    d2g_coeff = parameters[5]
 
     # read some values from the parameters file
     with np.load(opac_fname) as fid:
@@ -223,10 +225,17 @@ def make_disklab2d_model(
     #   grains for radmc3d (change a1 in the next
     #   call). Radmc will still complain though, we would have to
     #   recalculate g.
+
+    q = np.ones_like(d.r) * size_exp_0
+    r_q = 10 * au
+
+    mask = np.asarray(d.r > r_q).nonzero()
+    q[mask] = size_exp_1
+
     a, a_i, sig_da = get_powerlaw_dust_distribution(d.sigma * d2g,
                                                     np.minimum(a_opac[-1],
                                                                a_max),
-                                                    q=4 - size_exp,
+                                                    q=q,
                                                     na=n_a, a0=a_i[0],
                                                     a1=a_i[-1])
 

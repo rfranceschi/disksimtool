@@ -206,8 +206,11 @@ if __name__ == '__main__':
 
     model_options['sigma_funct'] = sigma_funct
 
-    default_params = np.array([0.9470830780128577, 6.250400805278292, 0.4495865608589366, 2.714376852103456, 0.012578747337948015],
-)
+    # default_params = np.array([0.9470830780128577, 6.250400805278292, 0.4495865608589366, 2.714376852103456, 0.012578747337948015],
+    default_params = np.array(
+        [2.95, 3.05, 6.250400805278292, 0.4495865608589366,
+         2.714376852103456, 0.012578747337948015],
+    )
 
     params_list = []
 
@@ -216,7 +219,7 @@ if __name__ == '__main__':
     ):
         try:
             model_dir = disk_model(_params, model_options,
-                                   models_root = Path('./runs/'))
+                                   models_root = Path('./runs_piecewise_q/'))
             # shutil.rmtree(model_dir / 'radmc_run')
             with open(model_dir / 'model_info.txt', "w") as file:
                 file.write(f"Model parameters:   {_params}\n")

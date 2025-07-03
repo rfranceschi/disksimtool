@@ -37,7 +37,7 @@ function do_cleanup() {
 
     # Move myanalysis directory and update symlink
     if [[ -d myanalysis ]]; then
-        DIR_NAME="myanalysis"
+        DIR_NAME="myanalysis_${JOBID}"
         mv myanalysis ${SLURM_SUBMIT_DIR}/$DIR_NAME
         ln -sf $DIR_NAME ${SLURM_SUBMIT_DIR}/latest_myanalysis
         debug_log "Moved myanalysis and updated symlink"

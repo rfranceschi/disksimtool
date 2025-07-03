@@ -51,7 +51,7 @@ def likelihood(params: list, **kwargs) -> float:
     try:
         logging.info(f"Compute likelihood at params={params}")
         model_dir = disk_model(params, model_options, show_plots=False)
-        lh = images_likelihood(model_dir, **kwargs)
+        lh = images_likelihood(model_dir, params, **kwargs)
         if lh is None:
             logging.warning('No likelihood was calculated at params={params}')
             lh = -1e300
@@ -62,9 +62,11 @@ def likelihood(params: list, **kwargs) -> float:
     return lh
 
 @traced
-def images_likelihood(model_path: Path, normalized_profiles: list = None,
+def images_likelihood(model_path: Path,
+                      params: list,
+                      normalized_profiles: list = None,
                       r_norm_as: float = None, r_min: float = None,
-                      plot: bool = False) -> float:
+                      ) -> float:
     """
     Calculate the total chi-squared (chi2) value for a model's generated images
     against observed profiles.
@@ -88,74 +90,56 @@ def images_likelihood(model_path: Path, normalized_profiles: list = None,
         raise ValueError('Provide both or neither r_norm_as and normalized_profiles.')
 
     chi2 = 0
-    if plot:
-        plt.close('all')
-        f, ax = plt.subplots(2, 1)
-    for i, output_fits in enumerate(model_path.glob('*.fits')):
-        obs_profile = profiles_dict[output_fits.stem].copy()
+    with h5py.File(output_file, 'a') as f:
+        # Generate a unique name for this step (UUID or increment counter)
+        step_id = str(len(f))
+        step_group = f.create_group(step_id)
+        step_group.create_dataset('params', data=params)
+        for i, output_fits in enumerate(model_path.glob('*.fits')):
+            obs_profile = profiles_dict[output_fits.stem].copy()
 
-        x_obs = np.copy(obs_profile['x'])
-        y_obs = np.copy(obs_profile['y'])
-        dy_obs = np.copy(obs_profile['dy'])
+            x_obs = np.copy(obs_profile['x'])
+            y_obs = np.copy(obs_profile['y'])
+            dy_obs = np.copy(obs_profile['dy'])
 
-        r_norm = None
-        if output_fits.stem in normalized_profiles:
-            r_norm = r_norm_as
-            norm = np.interp(r_norm_as, obs_profile['x'], obs_profile['y'])
-            y_obs /= norm
-            dy_obs /= norm
+            r_norm = None
+            if output_fits.stem in normalized_profiles:
+                r_norm = r_norm_as
+                norm = np.interp(r_norm_as, obs_profile['x'], obs_profile['y'])
+                y_obs /= norm
+                dy_obs /= norm
 
-        i_inner = np.nonzero(np.asarray(x_obs > r_min))
-        x_obs = x_obs[i_inner]
-        y_obs = y_obs[i_inner]
-        dy_obs = dy_obs[i_inner]
+            i_inner = np.nonzero(np.asarray(x_obs > r_min))
+            x_obs = x_obs[i_inner]
+            y_obs = y_obs[i_inner]
+            dy_obs = dy_obs[i_inner]
 
-        r_max = 1.5
-        i_outer = np.nonzero(np.asarray(x_obs < r_max))
-        x_obs = x_obs[i_outer]
-        y_obs = y_obs[i_outer]
-        dy_obs = dy_obs[i_outer]
+            r_max = 1.5
+            i_outer = np.nonzero(np.asarray(x_obs < r_max))
+            x_obs = x_obs[i_outer]
+            y_obs = y_obs[i_outer]
+            dy_obs = dy_obs[i_outer]
 
-        x_model, y_model, dy_model, norm = model_utils.get_profile_from_fits(
-            output_fits,
-            inc=model_options['inc'],
-            PA=model_options['PA'],
-            dist=model_options['distance_pc'],
-            beam=obs_profile['beam'],
-            r_norm=r_norm,
-            r_min=r_min,
-            rvals=x_obs,
-        )
+            x_model, y_model, dy_model, norm = model_utils.get_profile_from_fits(
+                output_fits,
+                inc=model_options['inc'],
+                PA=model_options['PA'],
+                dist=model_options['distance_pc'],
+                beam=obs_profile['beam'],
+                r_norm=r_norm,
+                r_min=r_min,
+                rvals=x_obs,
+            )
 
-        partial_chi2 = hf.calculate_chisquared(y_model,
-                                        y_obs,
-                                        dy_obs,
-                                        )
-        chi2 += partial_chi2
+            step_group.create_dataset(f'{output_fits.stem}_x', data=x_model)
+            step_group.create_dataset(f'{output_fits.stem}_y', data=y_model)
 
-        if plot:
-            ax[i].semilogy(x_model,
-                        y_model, '-',
-                        color='k',
-                        label=f"{partial_chi2:.2e}")
-            ax[i].semilogy(x_obs,
-                        y_obs,
-                        '-',
-                        color='r')
-            ax[i].set_title(output_fits.stem)
-            ax[i].legend(fontsize='small')
-        # r_in_as = 0.5
-        # condition = np.nonzero(np.asarray(x_model > r_in_as))
-        # chi2 += hf.calculate_chisquared(y_model[condition],
-        #                                 obs_profile['y'][condition],
-        #                                 obs_profile['dy'][condition],
-        #                                 )
-    if plot:
-        title = model_path.name
-        title = title.removeprefix("model_")
-        f.text(0.3, 0.6, f'{chi2:.2e}', size='small')
-        f.text(0.3, 0.95, title, size='small')
-        plt.show()
+            partial_chi2 = hf.calculate_chisquared(y_model,
+                                            y_obs,
+                                            dy_obs,
+                                            )
+            chi2 += partial_chi2
+
     return chi2
 
 @traced
@@ -286,10 +270,12 @@ if __name__ == '__main__':
         rank = MPI.COMM_WORLD.Get_rank()
         print(f"MPI rank {rank} started")
 
+    output_dir = Path("myanalysis")
+    output_file = output_dir / "output.h5"
     sampler = ultranest.ReactiveNestedSampler(model_params_names,
                                               wrapped_likelihood,
                                               prior_transform,
-                                              log_dir="myanalysis",
+                                              log_dir=str(output_dir),
                                               resume='resume',
                                               )
     results = sampler.run(Lepsilon=0.05,

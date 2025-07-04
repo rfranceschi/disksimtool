@@ -157,13 +157,13 @@ def prior_transform(params: list) -> np.array:
     params_transformed = np.copy(params)
 
     # grain size distribution exp, as in a**(-exp)
-    lo = 3
+    lo = 2
     hi = 5
     # uniform prior
     params_transformed[0] = params[0] * (hi - lo) + lo
 
     # grain size distribution exp, as in a**(-exp)
-    lo = 3
+    lo = 2
     hi = 5
     # uniform prior
     params_transformed[1] = params[1] * (hi - lo) + lo
@@ -184,7 +184,7 @@ def prior_transform(params: list) -> np.array:
 
     # d2g exp
     lo = 0
-    hi = 10
+    hi = 8
     # uniform prior
     params_transformed[4] = params[4] * (hi - lo) + lo
 

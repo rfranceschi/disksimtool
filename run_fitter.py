@@ -261,7 +261,7 @@ if __name__ == '__main__':
                                  normalized_profiles=normalized_profiles,
                                  r_norm_as=0.6,
                                  r_min=0.4,
-                                 plot=False)
+                                 )
 
     if "OMPI_COMM_WORLD_SIZE" in os.environ or "PMI_SIZE" in os.environ or "MPI_LOCALNRANKID" in os.environ:
         # Likely running under MPI

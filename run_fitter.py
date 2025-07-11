@@ -57,6 +57,7 @@ def likelihood(params: list, **kwargs) -> float:
             lh = -1e300
     except Exception as e:
         logging.warning(f"Error at params={params}: {e}")
+        logging.warning(e)
         lh = -1e300
     shutil.rmtree(model_dir, ignore_errors=True)
     return lh
@@ -90,55 +91,55 @@ def images_likelihood(model_path: Path,
         raise ValueError('Provide both or neither r_norm_as and normalized_profiles.')
 
     chi2 = 0
-    with h5py.File(output_file, 'a') as f:
-        # Generate a unique name for this step (UUID or increment counter)
-        step_id = str(len(f))
-        step_group = f.create_group(step_id)
-        step_group.create_dataset('params', data=params)
-        for i, output_fits in enumerate(model_path.glob('*.fits')):
-            obs_profile = profiles_dict[output_fits.stem].copy()
+    # with h5py.File(output_file, 'a') as f:
+    # Generate a unique name for this step (UUID or increment counter)
+    # step_id = str(len(f))
+    # step_group = f.create_group(step_id)
+    # step_group.create_dataset('params', data=params)
+    for i, output_fits in enumerate(model_path.glob('*.fits')):
+        obs_profile = profiles_dict[output_fits.stem].copy()
 
-            x_obs = np.copy(obs_profile['x'])
-            y_obs = np.copy(obs_profile['y'])
-            dy_obs = np.copy(obs_profile['dy'])
+        x_obs = np.copy(obs_profile['x'])
+        y_obs = np.copy(obs_profile['y'])
+        dy_obs = np.copy(obs_profile['dy'])
 
-            r_norm = None
-            if output_fits.stem in normalized_profiles:
-                r_norm = r_norm_as
-                norm = np.interp(r_norm_as, obs_profile['x'], obs_profile['y'])
-                y_obs /= norm
-                dy_obs /= norm
+        r_norm = None
+        if output_fits.stem in normalized_profiles:
+            r_norm = r_norm_as
+            norm = np.interp(r_norm_as, obs_profile['x'], obs_profile['y'])
+            y_obs /= norm
+            dy_obs /= norm
 
-            i_inner = np.nonzero(np.asarray(x_obs > r_min))
-            x_obs = x_obs[i_inner]
-            y_obs = y_obs[i_inner]
-            dy_obs = dy_obs[i_inner]
+        i_inner = np.nonzero(np.asarray(x_obs > r_min))
+        x_obs = x_obs[i_inner]
+        y_obs = y_obs[i_inner]
+        dy_obs = dy_obs[i_inner]
 
-            r_max = 1.5
-            i_outer = np.nonzero(np.asarray(x_obs < r_max))
-            x_obs = x_obs[i_outer]
-            y_obs = y_obs[i_outer]
-            dy_obs = dy_obs[i_outer]
+        r_max = 1.5
+        i_outer = np.nonzero(np.asarray(x_obs < r_max))
+        x_obs = x_obs[i_outer]
+        y_obs = y_obs[i_outer]
+        dy_obs = dy_obs[i_outer]
 
-            x_model, y_model, dy_model, norm = model_utils.get_profile_from_fits(
-                output_fits,
-                inc=model_options['inc'],
-                PA=model_options['PA'],
-                dist=model_options['distance_pc'],
-                beam=obs_profile['beam'],
-                r_norm=r_norm,
-                r_min=r_min,
-                rvals=x_obs,
-            )
+        x_model, y_model, dy_model, norm = model_utils.get_profile_from_fits(
+            output_fits,
+            inc=model_options['inc'],
+            PA=model_options['PA'],
+            dist=model_options['distance_pc'],
+            beam=obs_profile['beam'],
+            r_norm=r_norm,
+            r_min=r_min,
+            rvals=x_obs,
+        )
 
-            step_group.create_dataset(f'{output_fits.stem}_x', data=x_model)
-            step_group.create_dataset(f'{output_fits.stem}_y', data=y_model)
+        # step_group.create_dataset(f'{output_fits.stem}_x', data=x_model)
+        # step_group.create_dataset(f'{output_fits.stem}_y', data=y_model)
 
-            partial_chi2 = hf.calculate_chisquared(y_model,
-                                            y_obs,
-                                            dy_obs,
-                                            )
-            chi2 += partial_chi2
+        partial_chi2 = hf.calculate_chisquared(y_model,
+                                        y_obs,
+                                        dy_obs,
+                                        )
+        chi2 += partial_chi2
 
     return chi2
 

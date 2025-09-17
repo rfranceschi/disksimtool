@@ -291,9 +291,9 @@ if __name__ == '__main__':
                                               log_dir=str(output_dir),
                                               resume='resume',
                                               )
-    results = sampler.run(Lepsilon=0.05,
+    results = sampler.run(Lepsilon=0.1,
                           min_num_live_points=800,
-                          dlogz=1,
+                          dlogz=0.1,
                           show_status=True,
                           log_interval=1,
                           )

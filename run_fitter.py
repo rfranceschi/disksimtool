@@ -262,8 +262,7 @@ if __name__ == '__main__':
     model_options['sigma_funct'] = sigma_funct
 
     model_params_names = [
-        'size exp 0',
-        'size exp 1',
+        'size exp',
         'amax exp',
         'amax coeff',
         'd2g exp',

@@ -1,5 +1,6 @@
 import warnings
 from pathlib import Path
+from typing import List
 
 from autologging import traced, logged
 import astropy.constants as c
@@ -131,7 +132,7 @@ def get_powerlaw_dust_distribution(sigma_d, a_max, q=3.5, na=10, a0=None, a1=Non
 @logged
 @traced
 def make_disklab2d_model(
-        parameters: list,
+        parameters: List[float],
         mstar: float,
         lstar: float,
         tstar: float,
@@ -173,8 +174,8 @@ def make_disklab2d_model(
     # The different indices in the parameters list correspond to different
     # physical paramters
 
-    size_exp_0 = parameters[0]  # n(a) = a**(4-size_exp)
-    size_exp_1 = parameters[1]  # n(a) = a**(4-size_exp)
+    size_exp_0 = parameters[0]  # n(a) = a**(-size_exp)
+    size_exp_1 = parameters[1]  # n(a) = a**(-size_exp)
     amax_exp = parameters[2]  # a_max = amax_coeff * (d.r / (56 * au)) ** (
     # -amax_exp)
     amax_coeff = parameters[3]

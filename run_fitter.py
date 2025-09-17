@@ -15,6 +15,7 @@ import gofish as gf
 import h5py
 from matplotlib import pyplot as plt
 import numpy as np
+from numpy.typing import ArrayLike
 import ultranest
 
 from menu_model import disk_model
@@ -46,24 +47,43 @@ with h5py.File(fpath, 'r') as f:
         for _profile_key in f[_key].keys():
             profiles_dict[_key][_profile_key] = f[_key][_profile_key][:]
 
+def log_prior_diag(theta: ArrayLike, mu: ArrayLike, sigma: ArrayLike):
+    """
+    Diagonal (independent) Gaussian prior.
+    - theta, mu, sigma are 1D arrays of same length.
+    - sigma must be > 0 for all elements.
+    Returns the log prior (up to an additive constant).
+    """
+    if theta.shape != mu.shape or mu.shape != sigma.shape:
+        raise ValueError("theta, mu and sigma must have the same shape")
+    if np.any(sigma <= 0):
+        raise ValueError("sigma must be positive")
+    diff = (theta - mu) / sigma
+    return -0.5 * np.sum(diff * diff)
+
+
 @traced
-def likelihood(params: list, **kwargs) -> float:
+def log_likelihood(params: list, **kwargs) -> float:
     try:
         logging.info(f"Compute likelihood at params={params}")
         model_dir = disk_model(params, model_options, show_plots=False)
-        lh = images_likelihood(model_dir, params, **kwargs)
-        if lh is None:
+        logL = images_log_likelihood(model_dir, params, **kwargs)
+        if logL is None:
             logging.warning('No likelihood was calculated at params={params}')
-            lh = -1e300
+            logL = -1e300
     except Exception as e:
         logging.warning(f"Error at params={params}: {e}")
         logging.warning(e)
-        lh = -1e300
+        logL = -1e300
     shutil.rmtree(model_dir, ignore_errors=True)
-    return lh
+    mu = [3.05, 6.250400805278292, 0.4495865608589366,
+         2.714376852103456, 0.012578747337948015]
+    sigma = [0.3, 1, 0.1, 0.5, 0.003]
+
+    return logL + log_prior_diag(params, mu, sigma)
 
 @traced
-def images_likelihood(model_path: Path,
+def images_log_likelihood(model_path: Path,
                       params: list,
                       normalized_profiles: list = None,
                       r_norm_as: float = None, r_min: float = None,
@@ -90,7 +110,7 @@ def images_likelihood(model_path: Path,
     if not (normalized_profiles is None) == (r_norm_as is None):
         raise ValueError('Provide both or neither r_norm_as and normalized_profiles.')
 
-    chi2 = 0
+    logL = 0
     # with h5py.File(output_file, 'a') as f:
     # Generate a unique name for this step (UUID or increment counter)
     # step_id = str(len(f))
@@ -135,13 +155,10 @@ def images_likelihood(model_path: Path,
         # step_group.create_dataset(f'{output_fits.stem}_x', data=x_model)
         # step_group.create_dataset(f'{output_fits.stem}_y', data=y_model)
 
-        partial_chi2 = hf.calculate_chisquared(y_model,
-                                        y_obs,
-                                        dy_obs,
-                                        )
-        chi2 += partial_chi2
+        partial_logL = hf.calculate_log_likelihood(y_model, y_obs, dy_obs)
+        logL += partial_logL
 
-    return chi2
+    return logL
 
 @traced
 def prior_transform(params: list) -> np.array:
@@ -251,7 +268,7 @@ if __name__ == '__main__':
     ]
 
     normalized_profiles = ['1.6_mu']
-    wrapped_likelihood = partial(likelihood,
+    wrapped_likelihood = partial(log_likelihood,
                                  normalized_profiles=normalized_profiles,
                                  r_norm_as=0.6,
                                  r_min=0.4,

@@ -16,7 +16,7 @@ def movingaverage(interval, window_size):
     return np.convolve(interval, window, 'same')
 
 @traced
-def calculate_chisquared(sim_data: np.array, obs_data: np.array,
+def calculate_log_likelihood(sim_data: np.array, obs_data: np.array,
                          error: np.array) -> float:
     """
         Computes normalized chi-squared log-likelihood:

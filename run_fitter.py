@@ -54,6 +54,9 @@ def log_prior_diag(theta: ArrayLike, mu: ArrayLike, sigma: ArrayLike):
     - sigma must be > 0 for all elements.
     Returns the log prior (up to an additive constant).
     """
+    theta = np.array(theta)
+    mu = np.array(mu)
+    sigma = np.array(sigma)
     if theta.shape != mu.shape or mu.shape != sigma.shape:
         raise ValueError("theta, mu and sigma must have the same shape")
     if np.any(sigma <= 0):

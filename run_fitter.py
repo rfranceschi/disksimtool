@@ -163,38 +163,31 @@ def prior_transform(params: list) -> np.array:
     # uniform prior
     params_transformed[0] = params[0] * (hi - lo) + lo
 
-    # grain size distribution exp, as in a**(-exp)
-    lo = 2
-    hi = 5
-    # uniform prior
-    params_transformed[1] = params[1] * (hi - lo) + lo
-
-
     # grain size distribution exp, as in a0 * (r / r0)**exp
     lo = 4
     hi = 15
     # uniform prior
-    params_transformed[2] = params[2] * (hi - lo) + lo
+    params_transformed[1] = params[1] * (hi - lo) + lo
 
     # grain size distribution a0, as in a0 * (r / r0)**exp
     lo = 0.001
     hi = 10
     # log prior
-    params_transformed[3] = 10 ** (
-                params[3] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
+    params_transformed[2] = 10 ** (
+                params[2] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
 
     # d2g exp
     lo = 0
     hi = 8
     # uniform prior
-    params_transformed[4] = params[4] * (hi - lo) + lo
+    params_transformed[3] = params[3] * (hi - lo) + lo
 
     # d2g at 70 au
     lo = 0.001
     hi = 1
     # log prior
-    params_transformed[5] = 10 ** (
-                params[5] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
+    params_transformed[4] = 10 ** (
+                params[4] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))
 
     return params_transformed
 

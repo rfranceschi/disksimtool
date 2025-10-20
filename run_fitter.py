@@ -114,11 +114,6 @@ def images_log_likelihood(model_path: Path,
         raise ValueError('Provide both or neither r_norm_as and normalized_profiles.')
 
     logL = 0
-    # with h5py.File(output_file, 'a') as f:
-    # Generate a unique name for this step (UUID or increment counter)
-    # step_id = str(len(f))
-    # step_group = f.create_group(step_id)
-    # step_group.create_dataset('params', data=params)
     for i, output_fits in enumerate(model_path.glob('*.fits')):
         obs_profile = profiles_dict[output_fits.stem].copy()
 
@@ -178,8 +173,8 @@ def prior_transform(params: list) -> np.array:
     params_transformed = np.copy(params)
 
     # grain size distribution exp, as in a**(-exp)
-    lo = 2
-    hi = 8
+    lo = 0
+    hi = 5
     # uniform prior
     params_transformed[0] = params[0] * (hi - lo) + lo
 
@@ -190,7 +185,7 @@ def prior_transform(params: list) -> np.array:
     params_transformed[1] = params[1] * (hi - lo) + lo
 
     # grain size distribution a0, as in a0 * (r / r0)**exp
-    lo = 0.0001
+    lo = 0.001
     hi = 0.1
     # log prior
     params_transformed[2] = 10 ** (
@@ -203,8 +198,8 @@ def prior_transform(params: list) -> np.array:
     params_transformed[3] = params[3] * (hi - lo) + lo
 
     # d2g at 70 au
-    lo = 0.0001
-    hi = 0.1
+    lo = 0.00001
+    hi = 0.03
     # log prior
     params_transformed[4] = 10 ** (
                 params[4] * (np.log10(hi) - np.log10(lo)) + np.log10(lo))

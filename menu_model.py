@@ -160,10 +160,12 @@ def disk_model(parameters: list, options: dict, show_plots: bool = False,
             f"npix {options['npix']} "
             f"lambda {_lam_image * 1e4} "
             f"sizeau {2 * options['rout'] / au} "
-            f"setthreads {options['threads']}")
+            f"setthreads {options['threads']} "
+            f"nostar"
+        )
         if _scat:
-            radmc_call += ' stokes'
-        radmc_call += ' sloppy'
+            radmc_call += 'stokes '
+        radmc_call += 'sloppy '
         logging.info(radmc_call)
         disklab.radmc3d.radmc3d(
             radmc_call,

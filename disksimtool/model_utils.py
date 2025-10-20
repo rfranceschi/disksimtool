@@ -564,6 +564,7 @@ def sigma_with_rim(r: float, sigma_exp: float, r_exp: float, p: float,
     return surface_density
 
 def sigma_with_smooth_transition(r, sigma_exp, r_exp, p1, p2, r_transition, delta_r, w):
+    """Two power laws smoothly merged."""
     r = np.asarray(r)
     r_dim = r / r_exp
 
@@ -597,3 +598,101 @@ def integrate_sigma(r: np.array, sigma: np.array) -> float:
 
     """
     return simpson(y=2 * np.pi * r * sigma, x=r)
+
+def lbp_with_plateau(r, sigma_coeff, r_c, gamma,
+                     r_exp, w, gamma_exp=3,
+                     r_min=1e-3 * au, r_plateau=25.0 * au, delta=5 * au):
+    """
+    Lynden-Bell-Pringle profile with inner exponential taper and
+    an approximately constant plateau between r_exp and r_plateau.
+
+    Parameters
+    ----------
+    r : array
+        Radii
+    sigma_coeff, r_c, gamma : LBP parameters
+    r_exp, w, gamma_exp : inner taper parameters
+    r_min : float
+        Minimum radius cutoff
+    r_plateau : float
+        Outer edge of plateau
+    delta : float
+        Transition width for smooth blending
+
+    Returns
+    -------
+    surface_density : array
+    """
+    r_safe = np.maximum(r, r_min)
+
+    # Base LBP profile
+    base = sigma_coeff * (r_safe / r_c) ** (-gamma) * np.exp(-(r_safe / r_c) ** (2 - gamma))
+
+    # --- Plateau first ---
+    # Plateau value = profile at r_plateau
+    sigma_plateau_val = float(np.interp(r_plateau, r_safe, base))
+
+    # Blend plateau (inside) with base (outside)
+    alpha = 0.5 * (1 + np.tanh((r_safe - r_plateau) / delta))
+    plateaued = alpha * base + (1 - alpha) * sigma_plateau_val
+
+    # --- Inner exponential taper second ---
+    r_dim = r_safe / r_exp
+    rim_mask = r_dim < 1
+    taper = np.ones_like(r_safe)
+    if rim_mask.any():
+        taper_vals = np.exp(-((1 - r_dim[rim_mask]) / w) ** gamma_exp)
+        taper[rim_mask] = np.minimum(taper_vals, 1.0)
+    tapered = plateaued * taper
+
+    return tapered
+
+
+def lbp(r: float, sigma_c: float, r_c: float, gamma: float) -> float:
+    """
+    Lynden-Bell & Pringle self-similar profile.
+    """
+    return sigma_c * (r / r_c) ** (-gamma) * np.exp(
+        -(r / r_c) ** (2 - gamma))
+
+
+def gaussian(r, amp, r0, sigma_r):
+    """Gaussian profile."""
+    return amp * np.exp(-0.5 * ((r - r0) / sigma_r) ** 2)
+
+
+def gauss_lbp_smooth(r: float, sigma_c: float, r_c: float, gamma: float,
+                     r_transition: float, sigma_gauss: float, k: float):
+    """
+    Smoothly merge Gaussian (inner) and LBP (outer) using logistic blending.
+
+    Parameters
+    ----------
+    r : float or array
+        Radius.
+    sigma_c, r_c, gamma : floats
+        LBP parameters.
+    r_transition : float
+        Transition radius (center of blend).
+    sigma : float
+        Gaussian width.
+    k : float
+        Sharpness of the transition. Larger = sharper.
+
+    Returns
+    -------
+    float or ndarray
+        Hybrid surface density.
+    """
+    r = np.asarray(r)
+
+    # profiles
+    amp = lbp(r_transition, sigma_c, r_c, gamma)
+    g = gaussian(r, amp, r_transition, sigma_gauss)
+    l = lbp(r, sigma_c, r_c, gamma)
+
+    # smooth weight
+    w = 1.0 / (1.0 + np.exp(-k * (r - r_transition)))
+
+    return (1 - w) * g + w * l
+

@@ -1,0 +1,9 @@
+font.family: serif
+
+font.size: 8
+axes.titlesize: 8
+axes.labelsize: 13
+xtick.labelsize: 11
+ytick.labelsize: 11
+legend.fontsize: 11
+figure.titlesize: 13

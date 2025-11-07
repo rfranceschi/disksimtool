@@ -153,17 +153,6 @@ def images_log_likelihood(model_path: Path,
         partial_logL = hf.calculate_log_likelihood(y_model, y_obs, dy_obs)
         logL += partial_logL
 
-    target_params = np.array(
-        [9.47e-01, 6.25e+00, 4.50e-01, 2.71e+00, 1.26e-02])
-    sigma = np.array(
-        [0.05, 0.8, 0.05, 0.3, 0.005])  # example widths per parameter
-    amplitude = 1.0  # how strong the boost is (tune this)
-
-    params = np.array(params)
-    dist2 = np.sum(((params - target_params) / sigma) ** 2)
-    boost = amplitude * np.exp(-0.5 * dist2)
-    logL += boost
-
     return logL
 
 @traced

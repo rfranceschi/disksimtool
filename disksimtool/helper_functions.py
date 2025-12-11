@@ -38,4 +38,4 @@ def calculate_log_likelihood(sim_data: np.array, obs_data: np.array,
     resid2 = ((obs_data[valid] - sim_data[valid]) / error[valid]) ** 2
 
     # Return normalized log-likelihood
-    return -0.5 * np.sum(resid2) / len(resid2)
+    return -0.5 * np.sum(resid2) / len(resid2) / 1e16
